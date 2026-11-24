@@ -1,296 +1,1955 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vibe Diary — Quiet Daily Atmosphere & Mood Journal</title>
-  <meta
-    name="description"
-    content="Vibe Diary is a calm, local-first daily journal for capturing the mood, light, soundtrack, and atmosphere of each day."
-  />
-  <meta property="og:title" content="Vibe Diary — Quiet Daily Atmosphere & Mood Journal" />
-  <meta
-    property="og:description"
-    content="A quiet, tactile notebook in your browser for recording daily vibes, reflections, soundtracks, and moments."
-  />
-  <meta property="og:type" content="website" />
-  <link
-    rel="icon"
-    type="image/svg+xml"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23F6F2EB'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23C87D4B'/%3E%3C/svg%3E"
-  />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Noto+Sans+SC:wght@400;500&family=Noto+Serif+SC:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap"
-    rel="stylesheet"
-  />
-  <link rel="stylesheet" href="./styles.css" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>05 · 色粉水彩 — 芦苇荡交互</title>
+<meta name="description" content="风格化 WebGL 芦苇荡交互页面：冷压水彩纸与色粉干擦视觉，16-bit 丝滑弹性风场、丰盈水岸芦丛、灵动阳光星芒与绒绒柔焦飞絮。" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: #F6F5F1;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: none;
+  }
+  #stage {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    cursor: grab;
+  }
+  #stage:active { cursor: grabbing; }
+
+  .fallback {
+    position: fixed;
+    inset: 0;
+    display: none;
+    place-items: center;
+    padding: 24px;
+    text-align: center;
+    color: #6B564A;
+    background: #F6F5F1;
+  }
+</style>
 </head>
 <body>
-  <header class="site-header">
-    <div class="header-inner">
-      <a class="brand" href="#top" id="brand-link">
-        <span class="brand-mark">
-          <span class="brand-dot" aria-hidden="true"></span>
-          <span id="brand-name">Vibe Diary</span>
-        </span>
-        <span class="header-date" id="header-date"></span>
-      </a>
+  <canvas id="stage" aria-label="色粉水彩风格交互芦苇荡"></canvas>
+  <div id="fallback" class="fallback">WebGL unavailable</div>
 
-      <nav class="header-actions" aria-label="Journal tools">
-        <button
-          type="button"
-          class="icon-btn lang-toggle"
-          id="lang-toggle-btn"
-          title="Switch language"
-          aria-label="Switch language"
-        >
-          中文
-        </button>
+<script>
+(() => {
+  'use strict';
 
-        <button
-          type="button"
-          class="icon-btn"
-          id="theme-toggle-btn"
-          title="Switch theme"
-          aria-label="Switch theme"
-        >
-          <svg id="theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg>
-          <svg id="theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true" hidden>
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-          </svg>
-        </button>
+  const canvas = document.getElementById('stage');
+  const gl = canvas.getContext('webgl', {
+    alpha: false,
+    antialias: false,
+    depth: false,
+    stencil: false,
+    powerPreference: 'high-performance'
+  }) || canvas.getContext('experimental-webgl');
 
-        <button
-          type="button"
-          class="icon-btn"
-          id="backup-open-btn"
-          title="Export & Backup"
-          aria-label="Export and Backup"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          <span id="backup-btn-label">Backup</span>
-        </button>
-      </nav>
-    </div>
-  </header>
+  if (!gl) {
+    document.getElementById('fallback').style.display = 'grid';
+    return;
+  }
 
-  <main class="studio" id="top">
-    <section class="masthead" aria-labelledby="masthead-heading">
-      <h1 class="masthead-greeting" id="masthead-heading"></h1>
-      <p class="masthead-sub" id="masthead-subtitle"></p>
+  function mulberry32(seed) {
+    return function() {
+      let t = seed += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const rng = mulberry32(519283);
 
-      <div class="vibe-strip-wrap" aria-label="Recent atmosphere palette">
-        <div class="vibe-strip" id="vibe-strip"></div>
-        <div class="strip-meta" id="strip-meta"></div>
-      </div>
-    </section>
+  function createShader(type, src) {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+      console.error('Shader compile error:', gl.getShaderInfoLog(sh));
+      return null;
+    }
+    return sh;
+  }
+  function createProgram(vsSrc, fsSrc) {
+    const vs = createShader(gl.VERTEX_SHADER, vsSrc);
+    const fs = createShader(gl.FRAGMENT_SHADER, fsSrc);
+    const prog = gl.createProgram();
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      console.error('Program link error:', gl.getProgramInfoLog(prog));
+      return null;
+    }
+    return prog;
+  }
 
-    <section class="composer" aria-label="Write a new diary entry" id="composer-section">
-      <div class="editing-banner" id="editing-banner" hidden>
-        <span id="editing-banner-text"></span>
-        <button type="button" class="editing-cancel" id="editing-cancel-btn"></button>
-      </div>
+  const quadVS = `
+    attribute vec2 aPos;
+    varying vec2 vUv;
+    void main() {
+      vUv = aPos * 0.5 + 0.5;
+      gl_Position = vec4(aPos, 0.0, 1.0);
+    }
+  `;
 
-      <form id="entry-form" novalidate>
-        <div class="composer-top">
-          <div class="vibe-picker" id="vibe-picker" role="group" aria-label="Select today's vibe"></div>
+  // =========================================================================
+  // 0A. ONE-TIME GPU BAKE: 300GSM COLD-PRESS WATERCOLOR PAPER + CHALK TOOTH
+  // =========================================================================
+  const paperBakeFS = `
+    precision highp float;
+    varying vec2 vUv;
+    uniform vec2 uRes;
 
-          <label class="date-field" for="entry-date-input">
-            <span class="sr-only" id="date-field-label">Entry date</span>
-            <input type="date" id="entry-date-input" name="date" />
-          </label>
-        </div>
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+    }
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      return mix(
+        mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+        mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
+        f.y
+      );
+    }
+    float paperHeight(vec2 px) {
+      float dimples = noise(px * 0.20) * 0.52 + noise(px * 0.44 + vec2(11.3, 7.1)) * 0.30;
+      float pulp    = noise(px * 0.95 + vec2(3.7, 19.4)) * 0.18;
+      return dimples + pulp;
+    }
 
-        <label class="sr-only" for="entry-title-input" id="title-sr-label">Entry title</label>
-        <input
-          type="text"
-          id="entry-title-input"
-          class="composer-title"
-          maxlength="120"
-          autocomplete="off"
-        />
+    void main() {
+      float bumpScale = clamp(min(uRes.x, uRes.y) / 480.0, 1.0, 1.65);
+      vec2 px = gl_FragCoord.xy / bumpScale;
+      vec2 rawPx = gl_FragCoord.xy;
 
-        <label class="sr-only" for="entry-body-input" id="body-sr-label">Journal entry</label>
-        <textarea
-          id="entry-body-input"
-          class="composer-body"
-          rows="5"
-        ></textarea>
+      float hC = paperHeight(px);
+      float hR = paperHeight(px + vec2(1.15, 0.0));
+      float hU = paperHeight(px + vec2(0.0, 1.15));
+      float emboss = clamp((hC - hR) * 1.45 + (hC - hU) * 1.45, -0.45, 0.45);
 
-        <div class="photo-preview-wrap" id="photo-preview-wrap" hidden>
-          <img id="photo-preview-img" class="photo-preview" alt="Attached moment" />
-          <button
-            type="button"
-            class="photo-remove-btn"
-            id="photo-remove-btn"
-            aria-label="Remove photo"
-          >
-            &times;
-          </button>
-        </div>
+      float fineChalk = hash(rawPx * 0.97 + vec2(0.31, 0.67));
+      float medTooth  = noise(px * 0.85 + vec2(5.2, 2.9));
+      float toothMask = fineChalk * 0.56 + hC * 0.28 + medTooth * 0.16;
 
-        <div class="sensory-row">
-          <label class="sensory-field" for="entry-music-input">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M9 18V5l12-2v13" />
-              <circle cx="6" cy="18" r="3" />
-              <circle cx="18" cy="16" r="3" />
-            </svg>
-            <input type="text" id="entry-music-input" maxlength="80" autocomplete="off" />
-          </label>
+      vec2 crumbGrid = px * 0.26;
+      vec2 cellId = floor(crumbGrid);
+      vec2 cellUv = fract(crumbGrid);
+      float cellChance = hash(cellId + vec2(17.3, 41.9));
+      float crumbVal = 0.0;
+      if (cellChance > 0.945) {
+        vec2 cPos = vec2(hash(cellId + 1.7), hash(cellId + 8.3)) * 0.6 + 0.2;
+        float cAng = hash(cellId + 3.9) * 6.283;
+        vec2 d = cellUv - cPos;
+        vec2 rd = vec2(d.x * cos(cAng) - d.y * sin(cAng), d.x * sin(cAng) + d.y * cos(cAng));
+        float shape = 1.0 - smoothstep(0.06, 0.18, length(rd * vec2(1.0, 1.85)));
+        if (shape > 0.01) {
+          crumbVal = cellChance > 0.968 ? (0.5 + shape * 0.5) : (shape * 0.48);
+        }
+      }
 
-          <label class="sensory-field" for="entry-place-input">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-            <input type="text" id="entry-place-input" maxlength="80" autocomplete="off" />
-          </label>
+      gl_FragColor = vec4(hC, emboss * 0.5 + 0.5, toothMask, crumbVal);
+    }
+  `;
 
-          <label class="photo-attach-label" for="entry-photo-input" id="photo-attach-label">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <circle cx="8.5" cy="8.5" r="1.5" />
-              <polyline points="21 15 16 10 5 21" />
-            </svg>
-            <span id="photo-attach-text">Photo</span>
-            <input type="file" id="entry-photo-input" accept="image/*" class="sr-only" />
-          </label>
-        </div>
+  // =========================================================================
+  // 0B. ONE-TIME GPU BAKE: VELVETY COTTON-DOWN FLUFF SPRITE ATLAS (256x256)
+  // =========================================================================
+  const fluffBakeFS = `
+    precision highp float;
+    varying vec2 vUv;
 
-        <div class="composer-footer">
-          <div class="composer-meta">
-            <span id="word-count">0 words</span>
-            <span class="draft-status" id="draft-status"></span>
-          </div>
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+    }
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      return mix(
+        mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+        mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
+        f.y
+      );
+    }
+    float fbm(vec2 p) {
+      float v = 0.0, a = 0.5;
+      for (int i = 0; i < 3; i++) {
+        v += a * noise(p);
+        p = p * 2.04 + vec2(7.3, 4.1);
+        a *= 0.5;
+      }
+      return v;
+    }
 
-          <button type="submit" class="btn-primary" id="save-entry-btn" disabled>
-            <span id="save-btn-label">Save Entry</span>
-            <span class="kbd-hint" aria-hidden="true">⌘↵</span>
-          </button>
-        </div>
-      </form>
-    </section>
+    // Realistic elongated feathery reed-fluff wisp (一缕轻盈弯曲的芦苇绒丝):
+    // 7 distinct curving downy silk strands fanning gracefully in a crescent plume — legible at all sizes, ZERO round ball!
+    float evalReedSilk(vec2 p, float seed, float blur, out float spineOut) {
+      float baseDist = length(p);
+      spineOut = 0.0;
+      if (baseDist >= 1.0) return 0.0;
 
-    <section aria-labelledby="archive-heading">
-      <div class="archive-header">
-        <h2 class="section-heading" id="archive-heading"></h2>
+      // Gently curve the whole wisp coordinate space so each fluff has an organic wind-bent feather arc
+      vec2 q = p;
+      q.y -= (q.x * q.x - 0.15) * (0.28 + 0.14 * sin(seed * 7.1));
 
-        <div class="search-box">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="search"
-            id="search-input"
-            class="search-input"
-            autocomplete="off"
-          />
-          <button
-            type="button"
-            id="search-clear-btn"
-            class="search-clear"
-            aria-label="Clear search"
-            hidden
-          >
-            &times;
-          </button>
-        </div>
-      </div>
+      // Slender elongated plume-wisp frame from root (-0.52, 0) streaming smoothly to wispy tip (+0.78, 0)
+      float u = (q.x + 0.56) / 1.38; // 0 at base tuft -> 1 at feathery streaming tip
+      if (u < -0.18 || u > 1.18) return 0.0;
+      float uClamped = clamp(u, 0.0, 1.0);
 
-      <div class="filter-bar" id="filter-bar" role="group" aria-label="Filter entries by vibe"></div>
+      // Tapered wispy fan envelope: narrow delicate gathered stem-base flaring softly into streaming silk hairs
+      float spread = mix(0.06, 0.46, pow(uClamped, 0.72)) * (1.0 - smoothstep(0.68, 1.06, u) * 0.45);
+      spread += blur * 0.15;
 
-      <div class="timeline" id="timeline" aria-live="polite"></div>
-    </section>
-  </main>
+      // Organic turbulence warping the silk wisps so every strand feels featherlight
+      float nFlow = fbm(vec2(u * 2.6 + seed * 5.1, q.y * 3.8 + seed * 2.7)) - 0.5;
+      float yLocal = q.y + nFlow * (0.14 + 0.12 * uClamped);
 
-  <footer class="site-footer">
-    <p class="footer-note" id="footer-privacy-note"></p>
-    <p class="footer-note" id="footer-shortcut-note"></p>
-  </footer>
+      // 7 readable individual curving silk filaments streaming out from the base
+      float fanCoord = yLocal / max(spread, 0.04);
+      float inFan = exp(-pow(abs(fanCoord), mix(2.2, 1.7, blur)) * 1.15);
 
-  <!-- Entry Reader Modal -->
-  <div
-    class="modal-backdrop"
-    id="reader-modal"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="reader-title"
-    hidden
-  >
-    <div class="modal-panel">
-      <div class="modal-header">
-        <div class="entry-meta-left" id="reader-meta"></div>
-        <button type="button" class="modal-close" id="reader-close-btn" aria-label="Close">
-          &times;
-        </button>
-      </div>
+      // Individual feathery silk rays (low enough frequency so they stay crisp & readable on mobile!)
+      float wavePhase = fanCoord * 5.2 + sin(u * 4.5 + seed * 9.0) * 0.65 + seed * 4.0;
+      float strands = pow(0.5 + 0.5 * cos(wavePhase * 3.14159), mix(1.95, 0.65, blur));
+      // Subtle secondary micro-down fuzz along the strands
+      float subFuzz = 0.62 + 0.38 * fbm(vec2(u * 7.5 + seed * 11.0, fanCoord * 4.2));
 
-      <h3 class="reader-title" id="reader-title"></h3>
-      <p class="reader-body" id="reader-body"></p>
-      <img id="reader-photo" class="reader-photo" alt="Journal moment" hidden />
-      <div class="entry-anchors" id="reader-anchors" hidden></div>
+      // Uneven staggered filament tip lengths (like real hand-plucked reed silk!)
+      float tipNoise = fbm(vec2(fanCoord * 2.2 + seed * 8.3, seed * 3.7));
+      float tipCut = smoothstep(0.76 + 0.32 * tipNoise + blur * 0.12, 0.25, u);
+      float baseCut = smoothstep(-0.06 - blur * 0.08, 0.16, u);
 
-      <div class="modal-footer">
-        <button type="button" class="btn-secondary" id="reader-edit-btn"></button>
-        <button type="button" class="btn-secondary btn-danger" id="reader-delete-btn"></button>
-      </div>
-    </div>
-  </div>
+      // Soft delicate gathered silk spine near the base (slender & light, ZERO round dot or dark core!)
+      vec2 baseD = vec2((q.x + 0.40) * 2.2, yLocal * 5.2);
+      float baseSilk = exp(-dot(baseD, baseD) * mix(2.6, 1.0, blur));
+      spineOut = baseSilk * 0.85 + inFan * smoothstep(0.55, 0.05, u) * 0.40;
 
-  <!-- Backup & Data Portability Modal -->
-  <div
-    class="modal-backdrop"
-    id="backup-modal"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="backup-modal-title"
-    hidden
-  >
-    <div class="modal-panel compact">
-      <div class="modal-header">
-        <h3 class="section-heading" id="backup-modal-title"></h3>
-        <button type="button" class="modal-close" id="backup-close-btn" aria-label="Close">
-          &times;
-        </button>
-      </div>
+      // Gossamer translucent hazy mist wrapping the silk filaments (stronger when near-camera out-of-focus!)
+      float silkyVeil = inFan * tipCut * baseCut * (0.42 + 0.42 * subFuzz);
+      float crispStrands = inFan * tipCut * baseCut * strands * subFuzz;
 
-      <div class="data-section">
-        <p class="data-note" id="backup-modal-desc"></p>
+      float density = baseSilk * mix(0.62, 0.36, blur)
+                    + mix(crispStrands * 0.92 + silkyVeil * 0.44, silkyVeil * 0.96, blur * 0.82);
 
-        <div class="data-actions-grid">
-          <button type="button" class="btn-secondary" id="export-json-btn"></button>
-          <button type="button" class="btn-secondary" id="export-md-btn"></button>
-        </div>
+      float edgeGuard = smoothstep(1.0, 0.66, baseDist);
+      return clamp(density, 0.0, 1.0) * edgeGuard;
+    }
 
-        <label class="btn-secondary" for="import-json-input" id="import-json-label">
-          <span id="import-json-text"></span>
-          <input type="file" id="import-json-input" accept="application/json,.json" class="sr-only" />
-        </label>
+    void main() {
+      vec2 p = vUv * 2.0 - 1.0;
+      float sA, sB, sBokeh;
+      float wispA = evalReedSilk(p, 1.42, 0.06, sA);
+      // Second natural slightly wider/curlier fluff wisp variation
+      float wispB = evalReedSilk(vec2(p.x * 0.96 + p.y * 0.14, p.y * 0.92 - p.x * 0.14), 4.71, 0.10, sB);
+      // Dreamy elongated shallow-DOF hazy silk blur (preserves wispy feather silhouette — never a circle!)
+      float bokeh = evalReedSilk(p * 0.90, 2.89, 0.88, sBokeh);
+      float spineMask = clamp(max(sA, sB) * 0.78 + sBokeh * 0.35, 0.0, 1.0);
+      gl_FragColor = vec4(wispA, wispB, bokeh, spineMask);
+    }
+  `;
 
-        <div class="data-divider"></div>
+  // =========================================================================
+  // 1A. AIRY PAPER CANVAS + LIVING PAINTERLY BRUSHSTROKE SUN + MARSH BANK WASH
+  // =========================================================================
+  const skyFS = `
+    precision highp float;
+    varying vec2 vUv;
+    uniform float uTime;
+    uniform float uAspect;
+    uniform float uAgitation;
 
-        <button type="button" class="btn-secondary btn-danger" id="clear-samples-btn" hidden></button>
-      </div>
-    </div>
-  </div>
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+    }
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      return mix(
+        mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+        mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
+        f.y
+      );
+    }
 
-  <!-- Toast -->
-  <div class="toast" id="toast" role="status" aria-live="polite">
-    <span id="toast-message"></span>
-    <button type="button" class="toast-action" id="toast-action-btn" hidden></button>
-  </div>
+    void main() {
+      vec2 uv = vUv;
+      // Airy cold-press watercolor paper base breathing gently from warm horizon ivory into whisper-cool porcelain sky
+      vec3 paperIvory   = vec3(0.990, 0.985, 0.976);
+      vec3 horizonCream = vec3(0.994, 0.960, 0.922);
+      vec3 upperSkyMist = vec3(0.922, 0.950, 0.980);
 
-  <script src="./app.js" defer></script>
+      float horizWash = exp(-pow((uv.y - 0.44) / 0.28, 2.0));
+      float topWash   = smoothstep(0.56, 1.00, uv.y);
+      vec3 col = mix(paperIvory, horizonCream, horizWash * 0.58);
+      col = mix(col, upperSkyMist, topWash * 0.54);
+
+      // Soft horizontal drifting afternoon watercolor veil clouds (adds calm depth without clutter)
+      float cloudZone = smoothstep(0.54, 0.78, uv.y) * smoothstep(1.02, 0.80, uv.y);
+      if (cloudZone > 0.01) {
+        vec2 cUv = vec2(uv.x * uAspect * 0.85 - uTime * 0.014, uv.y * 3.4);
+        float cA = noise(cUv + vec2(1.9, 2.7));
+        float cB = noise(cUv * 1.9 + vec2(-uTime * 0.009 + 6.3, 4.1));
+        float veil = smoothstep(0.40, 0.84, cA * 0.65 + cB * 0.35) * cloudZone;
+        vec3 cloudWarm = vec3(0.994, 0.935, 0.875);
+        col = mix(col, cloudWarm, veil * 0.44);
+      }
+
+      // Balanced, living watercolor afternoon sun: maintains exact soft Gaussian presence while edge & broad brush washes visibly flow!
+      vec2 sunPos = vec2(uAspect < 1.0 ? 0.57 : 0.62, uAspect < 1.0 ? 0.74 : 0.72);
+      vec2 dSun = (uv - sunPos) * vec2(uAspect, 1.0);
+      float rSun = length(dSun);
+      float sunBreath = 1.0 + 0.042 * sin(uTime * 0.58) + 0.020 * cos(uTime * 0.94 + 1.1);
+      float sunR = (uAspect < 1.0 ? 0.094 : 0.116) * sunBreath;
+
+      if (rSun < sunR * 4.0) {
+        vec2 pSun = dSun / sunR;
+        float ang = atan(dSun.y, dSun.x);
+        float drift = uTime * 0.34;
+
+        // 1. Living hand-painted watercolor edge: soft low-frequency lobes undulating gently like wet pigment on damp paper
+        float edgeMorph = 0.085 * sin(ang * 2.0 + uTime * 0.64)
+                        + 0.066 * sin(ang * 3.0 - uTime * 0.48 + 1.3)
+                        + 0.042 * cos(ang * 5.0 + uTime * 0.80 - 0.7);
+
+        // 2. Two broad, counter-drifting flat-brush watercolor washes flowing across the sun face (ZERO thin messy lines!)
+        float a1 = 0.48 + sin(uTime * 0.26) * 0.32;
+        mat2 rot1 = mat2(cos(a1), -sin(a1), sin(a1), cos(a1));
+        float a2 = -0.62 + cos(uTime * 0.21) * 0.28;
+        mat2 rot2 = mat2(cos(a2), -sin(a2), sin(a2), cos(a2));
+
+        vec2 pB1 = rot1 * pSun;
+        vec2 pB2 = rot2 * pSun;
+        float brushSweepA = noise(pB1 * vec2(0.95, 2.35) + vec2(drift * 0.72, -drift * 0.38) + vec2(2.3, 4.1));
+        float brushSweepB = noise(pB2 * vec2(2.15, 0.95) + vec2(-drift * 0.55, drift * 0.62) + vec2(7.8, 1.9));
+        float wetBloom    = smoothstep(0.16, 0.86, brushSweepA * 0.54 + brushSweepB * 0.46);
+
+        // Soft feathered painterly light-lobes gently extending & retracting around the outer edge
+        float haloBrush = 0.70 + 0.30 * (0.5 + 0.5 * sin(ang * 3.0 - uTime * 0.68 + brushSweepB * 2.8));
+
+        float rOrg = rSun / (sunR * (0.94 + edgeMorph + 0.14 * (brushSweepA - 0.5)));
+        // Seamless Gaussian watercolor light falloff (keeps exact approved understated softness!)
+        float wideAura = exp(-pow(rOrg / 2.50, 2.0)) * (0.72 + 0.28 * haloBrush);
+        float softHalo = exp(-pow(rOrg / 1.50, 2.0)) * (0.70 + 0.30 * wetBloom) * (0.84 + 0.16 * haloBrush);
+        float sunGlow  = exp(-pow(rOrg / 0.96, 2.15));
+        float sunHeart = exp(-pow(rOrg / 0.52, 2.0));
+
+        // Living warm watercolor temperature tide flowing between pale honey-gold & soft apricot-blush
+        float mood = 0.5 + 0.5 * sin(uTime * 0.52 + brushSweepA * 2.4 - brushSweepB * 1.4);
+        vec3 auraApricot  = vec3(0.992, 0.896, 0.792);
+        vec3 softPeach    = mix(vec3(0.986, 0.778, 0.608), vec3(0.980, 0.735, 0.578), mood);
+        vec3 paleHoney    = mix(vec3(0.996, 0.868, 0.505), vec3(0.992, 0.818, 0.472), mood);
+        vec3 luminousCore = mix(vec3(0.998, 0.924, 0.648), vec3(0.996, 0.896, 0.605), 1.0 - wetBloom);
+
+        col = mix(col, auraApricot, clamp(wideAura * (0.40 + 0.06 * uAgitation), 0.0, 0.46));
+        col = mix(col, softPeach,   clamp(softHalo * (0.38 + 0.12 * wetBloom), 0.0, 0.46));
+        vec3 orbCol = mix(softPeach, paleHoney, 0.36 + 0.54 * wetBloom);
+        orbCol = mix(orbCol, luminousCore, sunHeart * (0.38 + 0.18 * brushSweepB));
+        col = mix(col, orbCol, clamp(sunGlow * (0.60 + 0.14 * wetBloom), 0.0, 0.72));
+      }
+
+      // Soft warm sunlit apricot-sage veil along the waterline (no heavy muddy green carpet!)
+      float bankTop = (uAspect < 1.0 ? 0.25 : 0.23) + 0.016 * sin(uv.x * 3.8 + 0.6);
+      float inBank = 1.0 - smoothstep(bankTop - 0.09, bankTop + 0.06, uv.y);
+      vec3 softBankMist = mix(vec3(0.955, 0.920, 0.845), vec3(0.915, 0.935, 0.855), 0.5 + 0.5 * sin(uv.x * 4.5));
+      col = mix(col, softBankMist, inBank * 0.28);
+
+      // Dreamy submerged warm coral-peach & honey-gold reed reflections glowing softly THROUGH the porcelain-blue water!
+      // (Directly echoes how the warm coral forms glow softly through the translucent blue bowl in the reference art!)
+      float waterBase = uAspect < 1.0 ? 0.205 : 0.195;
+      float inShallow = 1.0 - smoothstep(waterBase - 0.02, waterBase + 0.025, uv.y);
+      if (inShallow > 0.01) {
+        float wWave = 0.5 + 0.5 * sin(uv.x * (uAspect < 1.0 ? 7.5 : 13.0) + uTime * 0.35 + sin(uv.y * 22.0) * 0.8);
+        float coralPool = exp(-pow((uv.y - waterBase * 0.58) / (waterBase * 0.52), 2.0)) * (0.58 + 0.42 * wWave);
+        float sunRefl   = exp(-pow((uv.x - sunPos.x) * 2.6, 2.0)) * exp(-pow((uv.y - waterBase * 0.52) / (waterBase * 0.48), 2.0));
+        vec3 coralGlow  = mix(vec3(0.962, 0.635, 0.525), vec3(0.975, 0.775, 0.595), wWave * 0.65);
+        col = mix(col, coralGlow, inShallow * coralPool * 0.54);
+        col = mix(col, vec3(0.992, 0.865, 0.625), inShallow * sunRefl * 0.48);
+      }
+
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+
+  // =========================================================================
+  // 1B. TRANSLUCENT CHALKY PORCELAIN-BLUE WATER VEIL + HAND-BRUSHED CORAL RIM
+  // =========================================================================
+  const waterVeilFS = `
+    precision highp float;
+    varying vec2 vUv;
+    uniform float uTime;
+    uniform float uAspect;
+
+    void main() {
+      vec2 uv = vUv;
+      float wave = 0.0045 * sin(uv.x * 4.5 + uTime * 0.36)
+                 + 0.0025 * sin(uv.x * 9.2 - uTime * 0.24);
+      float waterTop = (uAspect < 1.0 ? 0.198 : 0.188) + wave;
+      if (uv.y > waterTop + 0.05) discard;
+
+      float inside = 1.0 - smoothstep(waterTop - 0.005, waterTop + 0.012, uv.y);
+      float depthGrad = smoothstep(waterTop, 0.0, uv.y);
+
+      // Luminous, clean powdery porcelain-cerulean water wash straight from the reference blue bowl
+      vec3 skyRim   = vec3(0.745, 0.862, 0.978);
+      vec3 skyMid   = vec3(0.565, 0.762, 0.948);
+      vec3 skyDeep  = vec3(0.425, 0.658, 0.915);
+      vec3 waterCol = mix(skyRim, skyMid, smoothstep(0.0, 0.52, depthGrad));
+      waterCol = mix(waterCol, skyDeep, smoothstep(0.48, 1.0, depthGrad));
+
+      float ripple = 0.5 + 0.5 * sin(uv.x * 16.0 + uTime * 0.56 + sin(uv.y * 32.0) * 1.2);
+      float sunX = uAspect < 1.0 ? 0.57 : 0.62;
+      float warmShimmer = exp(-pow((uv.x - sunX) * 2.4, 2.0)) * ripple;
+      waterCol = mix(waterCol, vec3(0.985, 0.845, 0.705), warmShimmer * 0.30 * (1.0 - depthGrad * 0.48));
+
+      // Keep upper water airy & translucent so warm coral reed glow shines softly through, deepening to rich cerulean at base!
+      float rimBand = exp(-pow((uv.y - (waterTop - 0.006)) / 0.015, 2.0)) * 0.44;
+      float alpha = inside * (0.24 + 0.58 * pow(depthGrad, 1.18)) + rimBand;
+
+      // Crisp-yet-hand-painted coral-vermilion accent rim line echoing the bowl rim in the reference art
+      float coralLineY = waterTop - 0.011 + 0.0018 * sin(uv.x * 11.0 + 0.9);
+      float coralDist = abs(uv.y - coralLineY);
+      float edgeTaper = smoothstep(0.01, 0.12, uv.x) * smoothstep(0.99, 0.88, uv.x);
+      float brushBreak = 0.52 + 0.48 * (0.5 + 0.5 * sin(uv.x * 23.0 + uTime * 0.18) * cos(uv.x * 9.5 - 0.8));
+      float coralRibbon = exp(-pow(coralDist / 0.0030, 2.0)) * brushBreak * (0.45 + 0.55 * edgeTaper);
+
+      vec3 coralRimCol = vec3(0.945, 0.385, 0.285);
+      vec3 finalCol = mix(waterCol, coralRimCol, clamp(coralRibbon * 0.92, 0.0, 0.88));
+      float finalAlpha = clamp(max(alpha, coralRibbon * 0.64), 0.0, 0.90);
+
+      if (finalAlpha < 0.005) discard;
+      gl_FragColor = vec4(finalCol, finalAlpha);
+    }
+  `;
+
+  // =========================================================================
+  // ULTRA-FAST 2-FETCH 16-BIT HERMITE ELASTIC FIELD SAMPLING & S-CURVE BEND
+  // (RG = 16-bit fieldPos, BA = 16-bit fieldLag in 64x4 RGBA8 -> 65,536 steps!)
+  // =========================================================================
+  const fieldSamplingGLSL = `
+    float decode16(vec2 rg) {
+      return rg.x * 0.99610895 + rg.y * 0.00389105;
+    }
+
+    // Returns vec2(pos, lagPos) with 16-bit sub-pixel smoothness in ONLY 2 texture fetches!
+    vec2 sampleElasticField(float worldX, float depth) {
+      float gx = clamp((worldX + 1.25) / 2.5, 0.0, 1.0) * 63.0;
+      float i0 = floor(gx);
+      float i1 = min(63.0, i0 + 1.0);
+      float fx = gx - i0;
+      fx = fx * fx * (3.0 - 2.0 * fx);
+
+      float row = floor(clamp(depth * 3.99, 0.0, 3.0));
+      float v = (row + 0.5) / 4.0;
+      vec4 t0 = texture2D(uFieldTex, vec2((i0 + 0.5) / 64.0, v));
+      vec4 t1 = texture2D(uFieldTex, vec2((i1 + 0.5) / 64.0, v));
+
+      float pos = mix((decode16(t0.rg) - 0.5) * 4.8, (decode16(t1.rg) - 0.5) * 4.8, fx);
+      float lag = mix((decode16(t0.ba) - 0.5) * 4.8, (decode16(t1.ba) - 0.5) * 4.8, fx);
+      return vec2(pos, lag);
+    }
+
+    float softBend(float x, float lim) {
+      float a = x / lim;
+      return x / sqrt(1.0 + a * a);
+    }
+
+    // True inextensible elastic reed cantilever (4-point midpoint arc integral in square screen space!)
+    // Preserves exact stalk length while bowing gracefully up to ~74 deg — ZERO rubber stretching or stiff shearing!
+    vec2 evalElasticStalk(vec2 base, float h, float t, float bend, float tipLag, float lean, float breathWave) {
+      float maxAngle = softBend(bend, 1.08);
+      float whipAng  = softBend(tipLag, 0.62);
+      vec2 sum = vec2(0.0);
+      float ds = t * 0.25;
+      for (int k = 0; k < 4; k++) {
+        float s = (float(k) + 0.5) * ds;
+        float th = lean * 0.30 * s
+                 + maxAngle * pow(s, 1.38)
+                 + whipAng  * pow(s, 2.25)
+                 + breathWave * s * s;
+        th = clamp(th, -1.30, 1.30);
+        sum += vec2(sin(th), cos(th));
+      }
+      vec2 disp = sum * (ds * h);
+      return vec2(base.x + disp.x / uAspect, base.y + disp.y);
+    }
+  `;
+
+  // =========================================================================
+  // 2. TENDER OLIVE-SAGE REED STALKS, GRACEFUL ARCHING LEAVES & BANK ACCENTS
+  // =========================================================================
+  const reedVS = `
+    precision highp float;
+    attribute vec2 aBase;
+    attribute vec4 aMeta;
+    attribute vec4 aShape;
+
+    uniform float uTime;
+    uniform float uAspect;
+    uniform float uAgitation;
+    uniform sampler2D uFieldTex;
+
+    varying float vT;
+    varying float vSide;
+    varying float vDepth;
+    varying float vSeed;
+    varying float vKind;
+    varying float vClipY;
+
+    ${fieldSamplingGLSL}
+
+    void main() {
+      float hScale = uAspect < 1.0 ? 1.04 : mix(1.04, 0.96, clamp((uAspect - 1.0) * 0.55, 0.0, 1.0));
+      float h = aMeta.x * hScale;
+      float w = aMeta.y;
+      float depth = aMeta.z;
+      float seed = aMeta.w;
+      float t = aShape.x;
+      float side = aShape.y;
+      float kind = aShape.z;
+      float attachT = aShape.w;
+
+      // Per-reed micro spatial phase offset breaks rigid lockstep so adjacent reeds ripple like liquid silk!
+      float phaseShift = (fract(seed * 23.17) - 0.5) * 0.11;
+      vec2 fld = sampleElasticField(aBase.x + phaseShift, depth);
+      float fieldBend = fld.x;
+      float fieldLag  = fld.y;
+      float whipDiff  = fieldLag - fieldBend;
+      float localAgit = clamp(abs(whipDiff) * 2.6 + abs(fieldBend) * 0.45 + uAgitation * 0.35, 0.0, 1.0);
+
+      float phase = seed * 37.7 + aBase.x * 2.1;
+      float windEnv = 0.62 + 0.38 * sin(uTime * 0.34 - aBase.x * 0.80 + depth * 1.15);
+      float breeze = (sin(uTime * 0.78 - aBase.x * 1.25 + depth * 1.55) * 0.105
+                   + sin(uTime * 1.42 + phase) * 0.032) * windEnv;
+      float breathWave = sin(uTime * 2.05 + phase - t * 1.9) * (0.022 + 0.036 * localAgit);
+
+      // Taller stalks flex deeper & more gracefully; shorter reeds rebound brisker
+      float heightFlex = clamp(h / 1.05, 0.68, 1.36);
+      float flex = (0.78 + fract(seed * 13.37) * 0.44) * heightFlex;
+      float lean = (fract(seed * 7.13) - 0.5) * 0.42;
+      float depthAmp = 0.62 + depth * 0.58;
+
+      float bend   = (fieldBend * flex + breeze) * depthAmp;
+      float tipLag = (whipDiff * 1.28 * flex) * depthAmp;
+
+      vec2 pos;
+      vec2 tangent;
+      float halfW;
+
+      if (kind < 0.5) {
+        vec2 p0 = evalElasticStalk(aBase, h, t, bend, tipLag, lean, breathWave);
+        vec2 p1 = evalElasticStalk(aBase, h, min(1.0, t + 0.03), bend, tipLag, lean, breathWave);
+        pos = p0;
+        tangent = normalize(p1 - p0 + vec2(0.0001, 0.001));
+        halfW = max(w * mix(1.08, 0.40, t), 0.0021);
+      } else if (kind < 2.5) {
+        // Restored graceful arching botanical reed leaf flowing organically in the stalk's bent frame!
+        float dir = kind < 1.5 ? -1.0 : 1.0;
+        vec2 anchor = evalElasticStalk(aBase, h, attachT, bend, tipLag, lean, breathWave);
+        vec2 ancNext = evalElasticStalk(aBase, h, min(1.0, attachT + 0.04), bend, tipLag, lean, breathWave);
+        vec2 sqUp = normalize(vec2((ancNext.x - anchor.x) * uAspect, ancNext.y - anchor.y) + vec2(0.0001, 0.001));
+        vec2 sqRight = vec2(sqUp.y, -sqUp.x);
+
+        float leafLen = h * (0.20 + fract(seed * 19.1 + attachT) * 0.14);
+        float leafFlutter = sin(uTime * 2.15 + phase + attachT * 5.0) * (0.045 + 0.085 * localAgit);
+        float windPush = softBend(bend * 0.48 + tipLag * 0.65, 0.72) + leafFlutter;
+
+        // Emerges smoothly along stalk, arches gracefully outward & slightly down at its delicate tapered tip
+        float spread = dir * (0.50 + 0.24 * fract(seed * 23.7)) + windPush * 0.52;
+        float droop  = 0.16 + 0.24 * fract(seed * 31.3) + abs(windPush) * 0.12;
+        vec2 sqC1 = (sqUp * 0.54 + sqRight * (spread * 0.48)) * leafLen;
+        vec2 sqC2 = (sqUp * (0.40 - droop) + sqRight * spread) * leafLen;
+        sqC2.y -= leafLen * (0.14 + 0.12 * fract(seed * 11.9));
+
+        float u = 1.0 - t;
+        vec2 sqDisp = 2.0 * u * t * sqC1 + t * t * sqC2;
+        vec2 sqDeriv = 2.0 * u * sqC1 + 2.0 * t * (sqC2 - sqC1);
+        pos = anchor + vec2(sqDisp.x / uAspect, sqDisp.y);
+        tangent = normalize(vec2(sqDeriv.x / uAspect, sqDeriv.y) + vec2(0.0001, 0.001));
+        halfW = w * 1.56 * sin(pow(t, 0.58) * 3.14159) * (1.0 - t * 0.34);
+        halfW = max(halfW, 0.0018 * (1.0 - t * 0.45));
+      } else {
+        // Subtle, delicate short water-edge grass accents hugging the bank softly (never drowning the blue water!)
+        float dir = fract(seed * 41.3) > 0.5 ? 1.0 : -1.0;
+        float archAmt = 0.24 + fract(seed * 17.9) * 0.34;
+        float grassBend = softBend(bend * 0.78 + tipLag * 0.60, 0.85) * (0.65 + 0.35 * attachT);
+
+        vec2 sqC1 = vec2((dir * archAmt * 0.36 + grassBend * 0.44) * h, h * 0.64);
+        vec2 sqC2 = vec2((dir * archAmt + grassBend * 0.92) * h, h * (0.90 - 0.20 * archAmt));
+
+        float u = 1.0 - t;
+        vec2 sqDisp = 2.0 * u * t * sqC1 + t * t * sqC2;
+        vec2 sqDeriv = 2.0 * u * sqC1 + 2.0 * t * (sqC2 - sqC1);
+        pos = aBase + vec2(sqDisp.x / uAspect, sqDisp.y);
+        tangent = normalize(vec2(sqDeriv.x / uAspect, sqDeriv.y) + vec2(0.0001, 0.001));
+        halfW = w * mix(1.24, 0.06, pow(t, 0.84));
+        halfW = max(halfW, 0.0015 * (1.0 - t * 0.65));
+      }
+
+      vec2 sqTan = normalize(vec2(tangent.x * uAspect, tangent.y) + vec2(0.0001, 0.001));
+      vec2 sqNorm = vec2(-sqTan.y, sqTan.x);
+      vec2 offset = vec2(sqNorm.x / uAspect, sqNorm.y) * side * halfW;
+      vec2 clip = vec2(pos.x, pos.y) + offset;
+
+      vT = t;
+      vSide = side;
+      vDepth = depth;
+      vSeed = seed;
+      vKind = kind;
+      vClipY = clip.y;
+      gl_Position = vec4(clip, 0.0, 1.0);
+    }
+  `;
+
+  const reedFS = `
+    precision highp float;
+    varying float vT;
+    varying float vSide;
+    varying float vDepth;
+    varying float vSeed;
+    varying float vKind;
+    varying float vClipY;
+
+    void main() {
+      vec3 farMistStraw = vec3(0.865, 0.885, 0.745);
+      vec3 tenderLime   = vec3(0.745, 0.822, 0.432);
+      vec3 springOlive  = vec3(0.625, 0.728, 0.365);
+      vec3 sunlitWheat  = vec3(0.865, 0.798, 0.505);
+      vec3 crispSage    = vec3(0.515, 0.635, 0.352);
+      vec3 waterMist    = vec3(0.565, 0.745, 0.815);
+
+      float colorMix = fract(vSeed * 19.7);
+      vec3 midTone  = mix(tenderLime, sunlitWheat, smoothstep(0.24, 0.86, colorMix));
+      vec3 nearTone = mix(springOlive, crispSage, smoothstep(0.24, 0.86, colorMix));
+      if (vKind > 0.5 && vKind < 2.5) {
+        nearTone = mix(nearTone, tenderLime, 0.52);
+      }
+
+      vec3 col = mix(farMistStraw, midTone, smoothstep(0.0, 0.48, vDepth));
+      col = mix(col, nearTone, smoothstep(0.44, 0.96, vDepth));
+
+      vec3 tipGold = vec3(0.922, 0.852, 0.535);
+      col = mix(col, tipGold, smoothstep(0.48, 1.0, vT) * 0.44);
+      col += vec3(0.052, 0.055, 0.026) * smoothstep(-0.2, 0.8, vSide);
+
+      // Softly dissolve submerged stem segments beneath the waterline so the porcelain-blue water stays luminous & clean!
+      float aboveWater = smoothstep(-0.88, -0.54, vClipY);
+      col = mix(waterMist, col, 0.32 + 0.68 * aboveWater);
+
+      float softEdge = 1.0 - smoothstep(0.32, 1.0, abs(vSide));
+      float baseAlpha = vKind > 2.5
+        ? mix(0.28, 0.58, smoothstep(0.0, 0.75, vDepth))
+        : (vKind > 0.5 ? mix(0.40, 0.82, smoothstep(0.0, 0.66, vDepth)) : mix(0.42, 0.82, smoothstep(0.0, 0.64, vDepth)));
+      float waterFade = mix(0.30, 1.0, aboveWater);
+      gl_FragColor = vec4(col, softEdge * baseAlpha * waterFade);
+    }
+  `;
+
+  // =========================================================================
+  // 3. AIRY FEATHERY WATERCOLOR-PASTEL REED PANICLES (SILKY FOLLOW-THROUGH)
+  // =========================================================================
+  const plumeVS = `
+    precision highp float;
+    attribute vec2 aBase;
+    attribute vec4 aMeta;
+    attribute vec4 aQuad;
+
+    uniform float uTime;
+    uniform float uAspect;
+    uniform float uAgitation;
+    uniform sampler2D uFieldTex;
+
+    varying vec2 vUv;
+    varying float vDepth;
+    varying float vSeed;
+    varying float vAgitation;
+
+    ${fieldSamplingGLSL}
+
+    void main() {
+      float hScale = uAspect < 1.0 ? 1.04 : mix(1.04, 0.96, clamp((uAspect - 1.0) * 0.55, 0.0, 1.0));
+      float h = aMeta.x * hScale;
+      float pSize = aMeta.y * hScale;
+      float depth = aMeta.z;
+      float seed = aMeta.w;
+      float fIdx = aQuad.z;
+
+      float phaseShift = (fract(seed * 23.17) - 0.5) * 0.11;
+      vec2 fld = sampleElasticField(aBase.x + phaseShift, depth);
+      float fieldBend = fld.x;
+      float fieldLag  = fld.y;
+      float whipDiff  = fieldLag - fieldBend;
+      float localAgit = clamp(abs(whipDiff) * 2.6 + abs(fieldBend) * 0.45 + uAgitation * 0.35, 0.0, 1.0);
+
+      float phase = seed * 37.7 + aBase.x * 2.1;
+      float windEnv = 0.62 + 0.38 * sin(uTime * 0.34 - aBase.x * 0.80 + depth * 1.15);
+      float breeze = (sin(uTime * 0.78 - aBase.x * 1.25 + depth * 1.55) * 0.105
+                   + sin(uTime * 1.42 + phase) * 0.032) * windEnv;
+      float breathWave = sin(uTime * 2.05 + phase - 1.8) * (0.022 + 0.036 * localAgit);
+
+      float heightFlex = clamp(h / 1.05, 0.68, 1.36);
+      float flex = (0.78 + fract(seed * 13.37) * 0.44) * heightFlex;
+      float lean = (fract(seed * 7.13) - 0.5) * 0.42;
+      float depthAmp = 0.62 + depth * 0.58;
+
+      float bend   = (fieldBend * flex + breeze) * depthAmp;
+      float tipLag = (whipDiff * 1.28 * flex) * depthAmp;
+
+      // Keep panicle fronds tightly nestled at the stalk crown so they stream as ONE cohesive silky plume!
+      float attachT = 0.83 + fIdx * 0.030;
+      vec2 tip  = evalElasticStalk(aBase, h, attachT, bend, tipLag, lean, breathWave);
+      vec2 prev = evalElasticStalk(aBase, h, attachT - 0.10, bend, tipLag, lean, breathWave);
+
+      vec2 sqDir = normalize(vec2((tip.x - prev.x) * uAspect, tip.y - prev.y) + vec2(0.0001, 0.001));
+      float naturalSide = (fract(seed * 29.1) > 0.28 ? 1.0 : -1.0);
+      // Since sqDir ALREADY follows the true bent cantilever angle, add only gentle silky streaming follow-through!
+      float windBias = softBend(bend * 0.65 + tipLag * 0.85, 0.95) + naturalSide * 0.22;
+      float spreadAngle = (fIdx - 1.45) * 0.115 * (1.0 + 0.22 * localAgit) + windBias * 0.095;
+      float gentleWave = sin(uTime * 2.40 + seed * 31.0 + fIdx * 1.9) * (0.022 + 0.044 * localAgit);
+      float ang = spreadAngle + gentleWave + clamp(whipDiff * 0.20, -0.22, 0.22);
+
+      float ca = cos(ang), sa = sin(ang);
+      vec2 fDir = vec2(sqDir.x * ca - sqDir.y * sa, sqDir.x * sa + sqDir.y * ca);
+      vec2 fRight = vec2(fDir.y, -fDir.x);
+
+      float u = aQuad.x, v = aQuad.y;
+      float len = pSize * aQuad.w * 1.08;
+      float wid = len * 0.375;
+
+      float arch = v * v * (windBias * 0.22 * len);
+      vec2 localSq = fDir * (v * len) + fRight * (u * wid + arch);
+      localSq.y -= v * v * len * 0.18;
+
+      vec2 clip = tip + vec2(localSq.x / uAspect, localSq.y);
+      vUv = vec2(u * 0.5 + 0.5, v);
+      vDepth = depth;
+      vSeed = seed + fIdx * 1.73;
+      vAgitation = localAgit;
+      gl_Position = vec4(clip, 0.0, 1.0);
+    }
+  `;
+
+  const plumeFS = `
+    precision highp float;
+    varying vec2 vUv;
+    varying float vDepth;
+    varying float vSeed;
+    varying float vAgitation;
+
+    void main() {
+      float x = (vUv.x - 0.5) * 2.0;
+      float y = vUv.y;
+
+      // Soft, plush, feathery botanical reed panicle envelope: velvety cloud belly tapering to wispy tips
+      float env = pow(sin(clamp(y, 0.0, 1.0) * 3.14159), 0.72) * mix(1.12, 0.44, pow(y, 0.86));
+      env *= smoothstep(0.0, 0.14, y);
+
+      float absX = abs(x);
+      // Airy feathery upward-sweeping silk spikelets
+      float barbCoord = y * 24.0 - absX * 10.0 + vSeed * 11.0;
+      float barbs = 0.5 + 0.5 * sin(barbCoord * 3.14159);
+      float wispyBreak = 0.5 + 0.26 * sin(absX * 15.0 + vSeed * 9.0) + 0.24 * cos(y * 21.0 - absX * 7.0 + vSeed * 5.0);
+
+      float featherWidth = env * (0.72 + 0.42 * barbs * wispyBreak);
+      float body = 1.0 - smoothstep(featherWidth * 0.04, featherWidth + 0.24, absX);
+      float core = 1.0 - smoothstep(0.0, env * 0.44, absX);
+
+      float alpha = clamp(core * 0.64 + body * (0.48 + 0.52 * wispyBreak) * 0.66, 0.0, 1.0);
+      alpha *= smoothstep(1.0, 0.66, y) * smoothstep(0.0, 0.10, y);
+      if (alpha < 0.02) discard;
+
+      // Rich velvety 4-layer color choreography straight from the reference pastel palette:
+      // misty rose-blush fog -> warm champagne-peach -> sunlit persimmon-coral + glowing butter-gold!
+      float tone = fract(vSeed * 13.7);
+      float warmMix = fract(vSeed * 29.3);
+
+      vec3 farRoseFog   = vec3(0.958, 0.805, 0.775);
+      vec3 farWheatMist = vec3(0.968, 0.865, 0.715);
+      vec3 midApricot   = vec3(0.968, 0.685, 0.525);
+      vec3 midChampagne = vec3(0.972, 0.818, 0.565);
+      vec3 coralHeart   = vec3(0.928, 0.372, 0.268);
+      vec3 roseSalmon   = vec3(0.965, 0.578, 0.458);
+      vec3 sunlitGold   = vec3(0.992, 0.858, 0.425);
+      vec3 silkCream    = vec3(0.998, 0.952, 0.868);
+
+      vec3 farTone  = mix(farRoseFog, farWheatMist, tone);
+      vec3 midTone  = mix(midApricot, midChampagne, smoothstep(0.22, 0.84, warmMix));
+      vec3 nearTone = mix(roseSalmon, coralHeart, smoothstep(0.16, 0.84, tone));
+      // ~28% of mid/front plumes bloom sunlit champagne-apricot so overlapping plumes separate with lyrical depth!
+      nearTone = mix(nearTone, midChampagne, smoothstep(0.70, 0.96, warmMix) * 0.56);
+
+      vec3 col = mix(farTone, midTone, smoothstep(0.0, 0.44, vDepth));
+      col = mix(col, nearTone, smoothstep(0.40, 0.90, vDepth));
+
+      // Joyful sunlit butter-yellow seed-glow inside the feathery heart + airy backlit cream tips!
+      float seedGlow = core * (0.34 + 0.66 * barbs) * smoothstep(0.14, 0.82, y);
+      col = mix(col, sunlitGold, seedGlow * 0.54);
+      float backlitRim = (1.0 - core) * smoothstep(0.28, 0.96, y) * (0.50 + 0.16 * vAgitation);
+      col = mix(col, silkCream, clamp(backlitRim, 0.0, 0.70));
+
+      alpha *= mix(0.42, 0.80, smoothstep(0.0, 0.62, vDepth));
+      gl_FragColor = vec4(col, alpha);
+    }
+  `;
+
+  // =========================================================================
+  // 4. AUTHENTIC FEATHERY REED-SILK FLUFF WISPS (DELICATE, WISPY, ZERO BLOBS!)
+  // =========================================================================
+  const fluffVS = `
+    precision highp float;
+    attribute vec2 aCorner;
+    attribute vec3 aPos3D;
+    attribute vec4 aInfo;       // x: size, y: rot, z: alpha, w: seed
+
+    uniform float uAspect;
+    varying vec2 vLocal;
+    varying float vDepthZ;
+    varying float vAlpha;
+    varying float vSeed;
+
+    void main() {
+      float z = max(aPos3D.z, 0.16);
+      float focal = 1.48;
+      vec2 center = vec2(aPos3D.x * focal / (z * uAspect), aPos3D.y * focal / z);
+      // True 3D macro perspective growth as a feathery wisp floats right up across the camera lens!
+      float perspSize = min((aInfo.x * focal) / z, 0.56);
+
+      float c = cos(aInfo.y);
+      float s = sin(aInfo.y);
+      vec2 rotCorner = vec2(aCorner.x * c - aCorner.y * s, aCorner.x * s + aCorner.y * c);
+      vec2 clip = center + vec2(rotCorner.x * perspSize / uAspect, rotCorner.y * perspSize);
+
+      vLocal = aCorner;
+      vDepthZ = z;
+      vAlpha = aInfo.z;
+      vSeed = aInfo.w;
+      gl_Position = vec4(clip, 0.0, 1.0);
+    }
+  `;
+
+  const fluffFS = `
+    precision highp float;
+    varying vec2 vLocal;
+    varying float vDepthZ;
+    varying float vAlpha;
+    varying float vSeed;
+    uniform sampler2D uFluffTex;
+
+    void main() {
+      vec2 p = vLocal;
+      float baseDist = length(p);
+      if (baseDist > 1.0) discard;
+
+      // Stay crisp feathery silk during visible mid-air approach, softening only when genuinely macro-close!
+      float nearBlur = smoothstep(1.10, 0.24, vDepthZ);
+      float farBlur  = smoothstep(2.6, 4.4, vDepthZ) * 0.35;
+      float blur = clamp(nearBlur * 0.82 + farBlur, 0.0, 1.0);
+
+      vec2 uv1 = p * 0.5 + 0.5;
+      if (fract(vSeed * 5.7) > 0.5) uv1.x = 1.0 - uv1.x;
+      if (fract(vSeed * 9.3) > 0.5) uv1.y = 1.0 - uv1.y;
+      vec4 tex = texture2D(uFluffTex, uv1);
+
+      float sharpSilk = mix(tex.r, tex.g, fract(vSeed * 17.3));
+      float density = mix(sharpSilk, tex.b, blur);
+      if (density < 0.015) discard;
+
+      // Keep macro lens-crossing fluff unmistakably visible & dreamy so viewer clearly sees IT causing focus pull!
+      float alpha = pow(clamp(density, 0.0, 1.0), 0.82) * vAlpha * mix(0.88, 0.62, nearBlur);
+      if (alpha < 0.012) discard;
+
+      // Natural warm dusty-apricot & champagne-flax silk detached from the coral-peach reed plumes!
+      float tint = fract(vSeed * 11.7);
+      vec3 silkTip   = mix(vec3(0.955, 0.825, 0.725), vec3(0.962, 0.875, 0.735), tint);
+      vec3 plumeTint = mix(vec3(0.905, 0.565, 0.455), vec3(0.915, 0.700, 0.505), tint);
+      float spineWt  = clamp(tex.a * (1.0 - nearBlur * 0.34) + density * 0.28, 0.0, 1.0);
+      vec3 col = mix(silkTip, plumeTint, spineWt * mix(0.80, 0.58, nearBlur));
+
+      gl_FragColor = vec4(col, alpha);
+    }
+  `;
+
+  // =========================================================================
+  // 5. COMPOSITE: PRE-BAKED COLD-PRESS PAPER + DRY PASTEL STIPPLE + RARE LENS DEFOCUS
+  // =========================================================================
+  const pastelPostFS = `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D uScene;
+    uniform sampler2D uPaper;
+    uniform vec2 uRes;
+    uniform float uLensBlur;
+    uniform vec2 uLensPos;
+
+    void main() {
+      vec4 paperData = texture2D(uPaper, vUv);
+      float hC        = paperData.r;
+      float emboss    = (paperData.g - 0.5) * 2.0;
+      float toothMask = paperData.b;
+      float crumbVal  = paperData.a;
+
+      vec2 sprayJitter = vec2(toothMask - 0.5, fract(toothMask * 7.31 + hC * 3.17) - 0.5);
+      vec2 uvJit = clamp(vUv + sprayJitter * (2.4 / min(uRes.x, uRes.y)), 0.001, 0.999);
+
+      vec3 rawScene = texture2D(uScene, vUv).rgb;
+      vec3 sprScene = texture2D(uScene, uvJit).rgb;
+      vec3 sceneCol = mix(rawScene, sprScene, 0.48);
+
+      // Progressive optical shallow-DOF focus pull radiating gently outward from behind the arriving fluff!
+      // (Zero extra texture taps 90%+ of the time when uLensBlur <= 0.004!)
+      if (uLensBlur > 0.004) {
+        float aspect = uRes.x / max(uRes.y, 1.0);
+        vec2 dLens = (vUv - uLensPos) * vec2(aspect, 1.0);
+        // Starts localized softly right behind the approaching fluff, then blooms gradually across the frame!
+        float prox = exp(-dot(dLens, dLens) * 2.6);
+        float bgSpread = smoothstep(0.10, 0.78, uLensBlur);
+        float localBlur = clamp(uLensBlur * mix(0.22 + 0.82 * prox, 0.70 + 0.36 * prox, bgSpread), 0.0, 1.0);
+        vec2 rad = (vec2(1.0 / uRes.x, 1.0 / uRes.y)) * (localBlur * min(uRes.x, uRes.y) * 0.022);
+
+        // Rotate disk subtly by static paper grain -> eliminates ring ghosting on thin reed stalks!
+        float rotA = toothMask * 6.28318;
+        float ca = cos(rotA), sa = sin(rotA);
+        mat2 rMat = mat2(ca, -sa, sa, ca);
+
+        vec3 b = sceneCol * 0.14;
+        // Inner ring (4 taps at 0.46 * rad) for silky core blur
+        b += texture2D(uScene, clamp(vUv + (rMat * vec2( 0.46,  0.00)) * rad, 0.001, 0.999)).rgb * 0.085;
+        b += texture2D(uScene, clamp(vUv + (rMat * vec2(-0.46,  0.00)) * rad, 0.001, 0.999)).rgb * 0.085;
+        b += texture2D(uScene, clamp(vUv + (rMat * vec2( 0.00,  0.46)) * rad, 0.001, 0.999)).rgb * 0.085;
+        b += texture2D(uScene, clamp(vUv + (rMat * vec2( 0.00, -0.46)) * rad, 0.001, 0.999)).rgb * 0.085;
+        // Outer ring (8 taps at 1.0 * rad) for creamy 35mm optical shallow-DOF bokeh
+        b += texture2D(uScene, clamp(vUv + (rMat * vec2( 0.92,  0.38)) * rad, 0.001, 0.999)).rgb * 0.065;
+        b += texture2D(uScene, clamp(vUv + (rMat * vec2(-0.92, -0.38)) * rad, 0.001, 0.999)).rgb * 0.065;
+        b += texture2D(uScene, clamp(vUv + (rMat * vec2(-0.38,  0.92)) * rad, 0.001, 0.999)).rgb * 0.065;
+        b += texture2D(uScene, clamp(vUv + (rMat * vec2( 0.38, -0.92)) * rad, 0.001, 0.999)).rgb * 0.065;
+        b += texture2D(uScene, clamp(vUv + (rMat * vec2( 0.92, -0.38)) * rad, 0.001, 0.999)).rgb * 0.065;
+        b += texture2D(uScene, clamp(vUv + (rMat * vec2(-0.92,  0.38)) * rad, 0.001, 0.999)).rgb * 0.065;
+        b += texture2D(uScene, clamp(vUv + (rMat * vec2( 0.38,  0.92)) * rad, 0.001, 0.999)).rgb * 0.065;
+        b += texture2D(uScene, clamp(vUv + (rMat * vec2(-0.38, -0.92)) * rad, 0.001, 0.999)).rgb * 0.065;
+
+        // Silky, zero-snap progressive mix (smooth onset from 0 -> 0.55 instead of abrupt early jump!)
+        vec3 warmHaze = mix(b, vec3(0.990, 0.968, 0.945), localBlur * 0.13);
+        sceneCol = mix(sceneCol, warmHaze, smoothstep(0.0, 0.58, localBlur));
+      }
+
+      vec3 paperBase = vec3(0.972, 0.969, 0.960);
+      vec3 litPaper = paperBase + vec3(0.052, 0.051, 0.048) * emboss + (hC - 0.5) * 0.024;
+
+      float pigmentStrength = clamp(length(vec3(0.990, 0.985, 0.976) - sceneCol) * 1.65, 0.0, 1.0);
+      // Silky wet-watercolor absorption for pale sky & misty sun + velvety dry-pastel tooth for botanical forms!
+      float wetWash    = smoothstep(0.0, 0.34, pigmentStrength) * (0.62 + 0.22 * (1.0 - toothMask));
+      float chalkTooth = smoothstep(toothMask * 0.84 - 0.04, toothMask * 0.84 + 0.28, pigmentStrength * 1.18);
+      float deposit    = mix(wetWash, chalkTooth, smoothstep(0.18, 0.46, pigmentStrength));
+      // Soften dry-pastel stipple smoothly during optical defocus so bokeh reads ultra-silky & lens-authentic
+      float stippleMix = mix(deposit, 1.0, clamp(smoothstep(0.84, 1.0, pigmentStrength) * 0.14 + uLensBlur * 0.64, 0.0, 0.90));
+
+      // Luminance-preserving chroma freshness (eliminates muddy brownish darkening on sunlit yellows & peaches!)
+      float luma = dot(sceneCol, vec3(0.299, 0.587, 0.114));
+      vec3 vividPigment = clamp(mix(vec3(luma), sceneCol, 1.16 - uLensBlur * 0.14), 0.0, 1.0);
+      vec3 col = mix(litPaper, vividPigment * (0.975 + 0.088 * emboss * (1.0 - uLensBlur * 0.55)), stippleMix);
+
+      // Subtle dry-pastel dust crumbs tucked near botanical plumes & water bank (keeps upper sky & sun serene!)
+      if (crumbVal > 0.01 && uLensBlur < 0.45) {
+        float nearArt = smoothstep(0.24, 0.56, pigmentStrength);
+        if (nearArt > 0.08) {
+          float isCoral = step(0.5, crumbVal);
+          float crumbShape = isCoral > 0.5 ? (crumbVal - 0.5) * 2.0 : (crumbVal / 0.48);
+          vec3 speckCol = mix(vec3(0.925, 0.775, 0.415), vec3(0.935, 0.405, 0.305), isCoral);
+          col = mix(col, speckCol, crumbShape * 0.66 * smoothstep(0.08, 0.48, nearArt) * (1.0 - uLensBlur * 2.0));
+        }
+      }
+
+      vec2 vc = vUv - 0.5;
+      float vig = 1.0 - dot(vc, vc) * 0.06;
+      col *= mix(0.978, 1.0, vig);
+
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+
+  // =========================================================================
+  // 6. DYNAMIC LUMINOUS SUNLIGHT SPARKLE BILLBOARDS (ZERO FULLSCREEN COST!)
+  //    (Ever-changing bright golden-white ✦ glints simulating afternoon sunbeams!)
+  // =========================================================================
+  const sparkleVS = `
+    precision highp float;
+    attribute vec2 aCorner;
+    attribute vec4 aSpark;      // xy: uv center [0..1], z: size, w: rot
+    attribute float aEnv;
+
+    uniform float uAspect;
+    varying vec2 vLocal;
+    varying float vEnv;
+
+    void main() {
+      float c = cos(aSpark.w);
+      float s = sin(aSpark.w);
+      vec2 rc = vec2(aCorner.x * c - aCorner.y * s, aCorner.x * s + aCorner.y * c);
+      vec2 clipCenter = aSpark.xy * 2.0 - 1.0;
+      float radius = aSpark.z * 2.3;
+      vec2 clip = clipCenter + vec2(rc.x * radius * 2.0 / uAspect, rc.y * radius * 2.0);
+      vLocal = aCorner * 2.3;
+      vEnv = aEnv;
+      gl_Position = vec4(clip, 0.0, 1.0);
+    }
+  `;
+
+  const sparkleFS = `
+    precision highp float;
+    varying vec2 vLocal;
+    varying float vEnv;
+
+    void main() {
+      if (vEnv < 0.01) discard;
+      float r2 = dot(vLocal, vLocal);
+      if (r2 > 5.0) discard;
+
+      // Warm golden-butter sunbeam halo + crisp pure sunlit cream-white 4-point star (✦)
+      float halo = exp(-r2 * 1.40) * vEnv;
+      vec2 ax = abs(vLocal);
+      float rayH = exp(-ax.y * 8.8) * exp(-ax.x * 1.32);
+      float rayV = exp(-ax.x * 8.8) * exp(-ax.y * 1.32);
+      float core = exp(-r2 * 6.2);
+      float star = clamp((rayH + rayV) * 0.92 + core * 0.96, 0.0, 1.0) * vEnv;
+
+      vec3 sunGold  = vec3(1.00, 0.825, 0.345);
+      vec3 sunWhite = vec3(1.00, 0.996, 0.945);
+      float alpha = clamp(max(halo * 0.58, star * 0.96), 0.0, 0.98);
+      if (alpha < 0.01) discard;
+
+      vec3 col = mix(sunGold, sunWhite, clamp(star * 1.25, 0.0, 1.0));
+      gl_FragColor = vec4(col, alpha);
+    }
+  `;
+
+  const paperBakeProg = createProgram(quadVS, paperBakeFS);
+  const fluffBakeProg = createProgram(quadVS, fluffBakeFS);
+  const skyProg       = createProgram(quadVS, skyFS);
+  const waterProg     = createProgram(quadVS, waterVeilFS);
+  const reedProg      = createProgram(reedVS, reedFS);
+  const plumeProg     = createProgram(plumeVS, plumeFS);
+  const fluffProg     = createProgram(fluffVS, fluffFS);
+  const postProg      = createProgram(quadVS, pastelPostFS);
+  const sparkleProg   = createProgram(sparkleVS, sparkleFS);
+
+  // =========================================================================
+  // FULLSCREEN QUAD & PRE-BAKED FLUFF SPRITE TEXTURE
+  // =========================================================================
+  const QUAD_BUF = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, QUAD_BUF);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+
+  const fluffTex = gl.createTexture();
+  {
+    const SZ = 256;
+    gl.bindTexture(gl.TEXTURE_2D, fluffTex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, SZ, SZ, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    const tmpFBO = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, tmpFBO);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fluffTex, 0);
+    gl.viewport(0, 0, SZ, SZ);
+    gl.disable(gl.BLEND);
+    gl.useProgram(fluffBakeProg);
+    const loc = gl.getAttribLocation(fluffBakeProg, 'aPos');
+    gl.bindBuffer(gl.ARRAY_BUFFER, QUAD_BUF);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.disableVertexAttribArray(loc);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteFramebuffer(tmpFBO);
+  }
+
+  // =========================================================================
+  // RESPONSIVE 4-LAYER REED MARSH & BASAL SEDGE GEOMETRY
+  // Automatically scales reed & sedge count with viewport width/aspect so wider
+  // screens grow fuller and narrower screens breathe cleanly at identical balance!
+  // =========================================================================
+  const BASE_REED_COUNTS  = [56, 48, 40, 30]; // sum = 174 at scale 1.0 -> breathable, lush, never overcrowded!
+  const BASE_SEDGE_COUNTS = [16, 14, 12, 10]; // sum = 52 at scale 1.0 -> clean delicate bank accents (leaves water pure!)
+  const STALK_SEGS = 8, LEAF_SEGS = 6, SEDGE_SEGS = 4;
+  const qPts = [[-1, 0], [1, 0], [-1, 1], [-1, 1], [1, 0], [1, 1]];
+
+  const REED_BUF  = gl.createBuffer();
+  const PLUME_BUF = gl.createBuffer();
+  let reedRanges  = [{ start: 0, count: 0 }, { start: 0, count: 0 }, { start: 0, count: 0 }, { start: 0, count: 0 }];
+  let plumeRanges = [{ start: 0, count: 0 }, { start: 0, count: 0 }, { start: 0, count: 0 }, { start: 0, count: 0 }];
+  let lastBuiltDensity = -1;
+
+  function rebuildMarshGeometry(curAspect, force = false) {
+    // Visual width of each reed/plume in clip space is proportional to 1 / aspect,
+    // so scaling count linearly with aspect preserves constant painterly balance at all widths!
+    const densityScale = Math.max(0.58, Math.min(2.55, 0.34 + curAspect * 0.88));
+    if (!force && Math.abs(densityScale - lastBuiltDensity) < 0.04) return;
+    lastBuiltDensity = densityScale;
+
+    const mrng = mulberry32(519283);
+    const clumpFreq = 4.2 * Math.max(0.85, Math.min(2.2, curAspect * 1.15));
+    const plumeAspScale = curAspect < 0.85 ? (0.86 + (curAspect / 0.85) * 0.14) : 1.0;
+    const sunValleyX = curAspect < 1.0 ? 0.14 : 0.24;
+    const isWide = curAspect >= 1.1;
+
+    const reedsByLayer = [[], [], [], []];
+    for (let layer = 0; layer < 4; layer++) {
+      const count = Math.max(14, Math.round(BASE_REED_COUNTS[layer] * densityScale));
+      for (let i = 0; i < count; i++) {
+        const tInLayer = count > 1 ? i / (count - 1) : 0.5;
+        const depth = (layer + tInLayer) / 4.0;
+        const baseX = tInLayer * 2.52 - 1.26;
+        const clumpPull = Math.sin(baseX * clumpFreq + layer * 1.4) * (0.044 / Math.max(0.85, Math.sqrt(densityScale)));
+        const stratX = baseX + clumpPull + (mrng() - 0.5) * (2.44 / count) * 1.48;
+        const x = Math.max(-1.26, Math.min(1.26, stratX));
+
+        // Poetic asymmetric skyline adapting naturally to portrait & wide landscape compositions
+        const leftCrest = Math.exp(-Math.pow((x + (isWide ? 0.78 : 0.62)) / 0.54, 2)) * (layer >= 2 ? 0.26 : 0.15);
+        const midSwell  = isWide ? (Math.exp(-Math.pow((x + 0.18) / 0.38, 2)) * (layer >= 2 ? 0.14 : 0.08)) : 0.0;
+        const rightRise = Math.exp(-Math.pow((x - (isWide ? 0.92 : 0.96)) / 0.44, 2)) * (layer >= 2 ? 0.22 : 0.12);
+        const sunValley = Math.exp(-Math.pow((x - sunValleyX) / 0.42, 2)) * (layer >= 2 ? 0.16 : 0.05);
+
+        const baseY = -1.06 - (3 - layer) * 0.018 + mrng() * 0.07;
+        // Balanced tiered heights: ~16% gentle lower-tier plumes add depth without choking stalks or arching leaves!
+        const tierRoll = mrng();
+        const isLowTier = (layer >= 1 && tierRoll < 0.16);
+        const minH = isLowTier ? [0.48, 0.52, 0.56, 0.60][layer] : [0.54, 0.68, 0.84, 0.98][layer];
+        const maxH = isLowTier ? [0.74, 0.80, 0.88, 0.96][layer] : [0.84, 1.04, 1.24, 1.44][layer];
+        const hasPlume = mrng() < [0.90, 0.90, 0.92, 0.92][layer];
+        let height = Math.max(0.46, minH + mrng() * (maxH - minH) + (isLowTier ? 0.0 : (leftCrest + midSwell + rightRise - sunValley)));
+        if (!hasPlume) height *= 0.68;
+        const width = [0.0024, 0.0031, 0.0040, 0.0051][layer] * (0.84 + mrng() * 0.32);
+        const plumeSize = [0.132, 0.164, 0.200, 0.240][layer] * plumeAspScale * (isLowTier ? 0.88 : 1.0) * (0.84 + mrng() * 0.34);
+        const seed = mrng();
+        reedsByLayer[layer].push({ x, baseY, height, width, depth, layer, hasPlume, plumeSize, seed });
+      }
+    }
+
+    const reedVerts = [];
+    const nextReedRanges = [];
+    function pushReedTri(bX, bY, h, w, d, seed, t0, s0, k, at, t1, s1, t2, s2) {
+      reedVerts.push(
+        bX, bY, h, w, d, seed, t0, s0, k, at,
+        bX, bY, h, w, d, seed, t1, s1, k, at,
+        bX, bY, h, w, d, seed, t2, s2, k, at
+      );
+    }
+
+    for (let layer = 0; layer < 4; layer++) {
+      const startVert = reedVerts.length / 10;
+      const list = reedsByLayer[layer];
+      // Restrained, delicate short water-edge grass accents hugging the waterline softly
+      const sedgeN = Math.max(6, Math.round(BASE_SEDGE_COUNTS[layer] * densityScale));
+      for (let g = 0; g < sedgeN; g++) {
+        const tg = sedgeN > 1 ? g / (sedgeN - 1) : 0.5;
+        const rawGx = tg * 2.48 - 1.24;
+        const tuftShift = Math.sin(rawGx * (clumpFreq * 1.15) + layer * 1.1) * (0.060 / Math.max(0.85, Math.sqrt(densityScale)));
+        const gx = Math.max(-1.26, Math.min(1.26, rawGx + tuftShift + (mrng() - 0.5) * (2.36 / sedgeN) * 1.35));
+        const gBaseY = -0.82 + mrng() * 0.10;
+        const gHeight = (0.11 + mrng() * 0.15) * (0.85 + layer * 0.08);
+        const gWidth = [0.0038, 0.0046, 0.0056, 0.0066][layer] * (0.80 + mrng() * 0.40);
+        const gDepth = (layer + mrng()) / 4.0;
+        const gSeed = mrng();
+        const gFlex = mrng();
+        for (let s = 0; s < SEDGE_SEGS; s++) {
+          const t0 = s / SEDGE_SEGS, t1 = (s + 1) / SEDGE_SEGS;
+          pushReedTri(gx, gBaseY, gHeight, gWidth, gDepth, gSeed, t0, -1, 3.0, gFlex, t0, 1, t1, -1);
+          pushReedTri(gx, gBaseY, gHeight, gWidth, gDepth, gSeed, t1, -1, 3.0, gFlex, t0, 1, t1, 1);
+        }
+      }
+      for (let i = 0; i < list.length; i++) {
+        const r = list[i];
+        for (let s = 0; s < STALK_SEGS; s++) {
+          const t0 = s / STALK_SEGS, t1 = (s + 1) / STALK_SEGS;
+          pushReedTri(r.x, r.baseY, r.height, r.width, r.depth, r.seed, t0, -1, 0, 0, t0, 1, t1, -1);
+          pushReedTri(r.x, r.baseY, r.height, r.width, r.depth, r.seed, t1, -1, 0, 0, t0, 1, t1, 1);
+        }
+        // Restored graceful arching botanical reed leaves along the stalks (2 leaves on mid/front, 1-2 on back)
+        const leafCount = layer === 0 ? (i % 2 === 0 ? 2 : 1) : (layer === 3 ? 3 : 2);
+        for (let lf = 0; lf < leafCount; lf++) {
+          const kind = ((i + lf) % 2 === 0) ? 1.0 : 2.0;
+          const attachT = 0.18 + lf * 0.17 + (r.seed * 0.08);
+          for (let s = 0; s < LEAF_SEGS; s++) {
+            const t0 = s / LEAF_SEGS, t1 = (s + 1) / LEAF_SEGS;
+            pushReedTri(r.x, r.baseY, r.height, r.width, r.depth, r.seed + lf * 0.37, t0, -1, kind, attachT, t0, 1, t1, -1);
+            pushReedTri(r.x, r.baseY, r.height, r.width, r.depth, r.seed + lf * 0.37, t1, -1, kind, attachT, t0, 1, t1, 1);
+          }
+        }
+      }
+      nextReedRanges.push({ start: startVert, count: reedVerts.length / 10 - startVert });
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, REED_BUF);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(reedVerts), gl.STATIC_DRAW);
+    reedRanges = nextReedRanges;
+
+    const plumeVerts = [];
+    const nextPlumeRanges = [];
+    for (let layer = 0; layer < 4; layer++) {
+      const startVert = plumeVerts.length / 10;
+      const list = reedsByLayer[layer];
+      const frondsPerPlume = layer === 0 ? 3 : 4;
+      for (let i = 0; i < list.length; i++) {
+        const r = list[i];
+        if (!r.hasPlume) continue;
+        for (let f = 0; f < frondsPerPlume; f++) {
+          const scale = (0.76 + (f / frondsPerPlume) * 0.34) * (0.88 + mrng() * 0.22);
+          for (let k = 0; k < 6; k++) {
+            plumeVerts.push(r.x, r.baseY, r.height, r.plumeSize, r.depth, r.seed, qPts[k][0], qPts[k][1], f, scale);
+          }
+        }
+      }
+      nextPlumeRanges.push({ start: startVert, count: plumeVerts.length / 10 - startVert });
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, PLUME_BUF);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(plumeVerts), gl.STATIC_DRAW);
+    plumeRanges = nextPlumeRanges;
+  }
+
+  // =========================================================================
+  // 16-BIT ELASTIC WIND & INERTIAL TIP-FOLLOW FIELD (64 x 4 RGBA8 NEAREST)
+  // =========================================================================
+  const GRID_X = 64, GRID_Z = 4;
+  const fieldPos    = new Float32Array(GRID_X * GRID_Z);
+  const fieldVel    = new Float32Array(GRID_X * GRID_Z);
+  const fieldLag    = new Float32Array(GRID_X * GRID_Z);
+  const fieldLagVel = new Float32Array(GRID_X * GRID_Z);
+  const fieldBytes  = new Uint8Array(GRID_X * GRID_Z * 4);
+
+  const fieldTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, fieldTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, GRID_X, GRID_Z, 0, gl.RGBA, gl.UNSIGNED_BYTE, fieldBytes);
+
+  // =========================================================================
+  // 3D FEATHERY REED-SILK FLUFF & 4 SPARSE SUNLIGHT SPARKLE BUFFERS
+  // =========================================================================
+  const MAX_FLUFF = 64;
+  const fluffList = [];
+  for (let i = 0; i < MAX_FLUFF; i++) {
+    fluffList.push({ active: false, x: 0, y: 0, z: 3, vx: 0, vy: 0, vz: 0, rot: 0, vrot: 0, size: 0.032, age: 0, life: 5, seed: rng(), cameraBound: false, isLensHero: false, goalX: 0, goalY: 0 });
+  }
+  const FLUFF_STRIDE = 9;
+  const fluffMidData  = new Float32Array(MAX_FLUFF * 6 * FLUFF_STRIDE);
+  const fluffNearData = new Float32Array(MAX_FLUFF * 6 * FLUFF_STRIDE);
+  const FLUFF_BUF = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, FLUFF_BUF);
+  gl.bufferData(gl.ARRAY_BUFFER, fluffMidData.byteLength, gl.DYNAMIC_DRAW);
+
+  const NUM_SPARKLES = 4;
+  const SPARK_STRIDE = 7; // corner(2), center(2), size(1), rot(1), env(1)
+  const sparkData = new Float32Array(NUM_SPARKLES * 6 * SPARK_STRIDE);
+  const SPARK_BUF = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, SPARK_BUF);
+  gl.bufferData(gl.ARRAY_BUFFER, sparkData.byteLength, gl.DYNAMIC_DRAW);
+
+  let aspect = 1.0;
+
+  function spawnFluff(worldX, worldY, swipeVx, cameraBound, boost, isLensHero = false) {
+    let slot = null;
+    for (let i = 0; i < MAX_FLUFF; i++) { if (!fluffList[i].active) { slot = fluffList[i]; break; } }
+    if (!slot) {
+      let maxR = -1;
+      for (let i = 0; i < MAX_FLUFF; i++) {
+        if (fluffList[i].isLensHero) continue;
+        const r = fluffList[i].age / fluffList[i].life;
+        if (r > maxR) { maxR = r; slot = fluffList[i]; }
+      }
+      if (!slot) slot = fluffList[0];
+    }
+    const focal = 1.48;
+    // Start hero wisp visibly out among the reeds (z ≈ 1.88) so the user watches it glide steadily toward the lens!
+    const z0 = isLensHero ? (1.84 + Math.random() * 0.18) : (cameraBound ? (1.58 + Math.random() * 0.95) : (2.05 + Math.random() * 1.75));
+    const spawnX = isLensHero
+      ? Math.max(-0.42, Math.min(0.42, worldX * 0.36 + (Math.random() - 0.5) * 0.30))
+      : (cameraBound ? (worldX * 0.55 + (Math.random() - 0.5) * 0.92) : (worldX + (Math.random() - 0.5) * 0.72));
+    const plumeBandY = isLensHero
+      ? (0.00 + Math.random() * 0.24)
+      : Math.max(-0.10, Math.min(0.46, worldY + (Math.random() - 0.38) * 0.34));
+    slot.active = true;
+    slot.isLensHero = isLensHero;
+    slot.x = spawnX * z0 * aspect / focal;
+    slot.y = plumeBandY * z0 / focal;
+    slot.z = z0;
+    // Aspect-safe landing zone near lens glass (z ≈ 0.46) so hero wisp gracefully crosses the view on any screen
+    const goalClipX = (Math.random() - 0.5) * 0.62;
+    const goalClipY = -0.04 + Math.random() * 0.36;
+    slot.goalX = goalClipX * 0.46 * aspect / focal;
+    slot.goalY = goalClipY * 0.46 / focal;
+    slot.vx = isLensHero ? ((slot.goalX - slot.x) * 0.36) : (swipeVx * (0.09 + Math.random() * 0.12) + (Math.random() - 0.5) * 0.24);
+    slot.vy = isLensHero ? ((slot.goalY - slot.y) * 0.36) : (0.18 + Math.random() * 0.24 + boost * 0.14);
+    slot.vz = isLensHero ? -(0.54 + Math.random() * 0.08) : (cameraBound ? -(0.52 + Math.random() * 0.42 + boost * 0.28) : -(0.06 + Math.random() * 0.10));
+    slot.rot = Math.random() * Math.PI * 2;
+    slot.vrot = (Math.random() - 0.5) * (isLensHero ? 0.48 : 0.85);
+    slot.size = isLensHero ? (0.106 + Math.random() * 0.020) : (cameraBound ? (0.056 + Math.random() * 0.034) : (0.042 + Math.random() * 0.026));
+    slot.age = 0;
+    slot.life = isLensHero ? 5.8 : (cameraBound ? (4.4 + Math.random() * 2.4) : (6.0 + Math.random() * 3.0));
+    slot.seed = Math.random();
+    slot.cameraBound = cameraBound || isLensHero;
+  }
+
+  let sceneFBO = null, sceneTex = null, paperTex = null, fbWidth = 1, fbHeight = 1;
+  function createRenderTex(w, h) {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    return tex;
+  }
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+    const w = Math.max(1, Math.floor(window.innerWidth * dpr));
+    const h = Math.max(1, Math.floor(window.innerHeight * dpr));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    fbWidth = w; fbHeight = h; aspect = w / h;
+
+    if (sceneTex) gl.deleteTexture(sceneTex);
+    if (paperTex) gl.deleteTexture(paperTex);
+    if (sceneFBO) gl.deleteFramebuffer(sceneFBO);
+
+    sceneTex = createRenderTex(w, h);
+    paperTex = createRenderTex(w, h);
+
+    sceneFBO = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, paperTex, 0);
+    gl.viewport(0, 0, w, h);
+    gl.disable(gl.BLEND);
+    gl.useProgram(paperBakeProg);
+    const pLoc = gl.getAttribLocation(paperBakeProg, 'aPos');
+    gl.uniform2f(gl.getUniformLocation(paperBakeProg, 'uRes'), w, h);
+    gl.bindBuffer(gl.ARRAY_BUFFER, QUAD_BUF);
+    gl.enableVertexAttribArray(pLoc);
+    gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.disableVertexAttribArray(pLoc);
+
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, sceneTex, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    rebuildMarshGeometry(aspect);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Just 4 delicate wisps drifting lazily in the idle breeze
+  for (let i = 0; i < 4; i++) {
+    spawnFluff((Math.random() - 0.5) * 1.5, 0.08 + Math.random() * 0.45, 0.12, i === 0, 0.0, false);
+  }
+
+  // =========================================================================
+  // SILKY CONTINUOUS POINTER TRACKING & STAGGERED FLUFF TRICKLE EMITTER
+  // =========================================================================
+  let pointerActive = false, pointerDown = false;
+  let targetX = 0, targetY = 0, smoothX = 0, smoothY = 0, prevSmoothX = 0, smoothVx = 0;
+  let lastSign = 0, swipeFrequency = 0, globalAgitation = 0, recentReversals = 0;
+  let pendingFluff = 0, emitCooldown = 0, lastBrushX = 0, lastBrushY = 0.2, lastBrushVx = 0;
+  let pointerIdleTimer = 1.0;
+
+  // Rare cinematic lens-defocus controller (strict 16–22s cooldown so screen stays crisp most of the time!)
+  let lensCooldown = 1.2;
+  let lensBlur = 0.0;
+  let lensBlurAge = 0.0;
+  let lensHadBlur = false;
+  let lensPosX = 0.5, lensPosY = 0.54;
+
+  function screenToWorld(cx, cy) {
+    return [(cx / window.innerWidth) * 2 - 1, 1 - (cy / window.innerHeight) * 2];
+  }
+
+  function onPointerStart(cx, cy) {
+    const [wx, wy] = screenToWorld(cx, cy);
+    pointerDown = true;
+    pointerActive = true;
+    pointerIdleTimer = 0;
+    lastSign = 0;
+    targetX = wx; targetY = wy;
+    smoothX = wx; smoothY = wy;
+    prevSmoothX = wx;
+    smoothVx *= 0.25;
+  }
+
+  function onPointerMove(cx, cy, isTouch) {
+    const [wx, wy] = screenToWorld(cx, cy);
+    if (!pointerActive) {
+      pointerActive = true;
+      smoothX = wx; smoothY = wy; prevSmoothX = wx;
+    }
+    targetX = wx;
+    targetY = wy;
+    if (isTouch) pointerDown = true;
+    pointerIdleTimer = 0;
+  }
+
+  canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if (e.touches.length) onPointerStart(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  canvas.addEventListener('touchmove',  (e) => { e.preventDefault(); if (e.touches.length) onPointerMove(e.touches[0].clientX, e.touches[0].clientY, true); }, { passive: false });
+  canvas.addEventListener('touchend',   (e) => { e.preventDefault(); pointerDown = false; }, { passive: false });
+  canvas.addEventListener('touchcancel',(e) => { e.preventDefault(); pointerDown = false; }, { passive: false });
+  canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') onPointerStart(e.clientX, e.clientY); });
+  window.addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch') onPointerMove(e.clientX, e.clientY, false); });
+  window.addEventListener('pointerup',   (e) => { if (e.pointerType !== 'touch') pointerDown = false; });
+
+  const LAYER_TOUCH = [0.46, 0.74, 1.04, 1.30];
+
+  function applyContinuousBrush(x0, x1, wy, dx, vx, speed, dt, isPressed) {
+    // Generous response anywhere across the marsh; only gently tapers high in empty sky
+    const heightWeight = wy > 0.68 ? Math.max(0.18, 1.0 - (wy - 0.68) * 2.2) : 1.0;
+    const minX = Math.min(x0, x1), maxX = Math.max(x0, x1);
+    const radius = isPressed
+      ? (aspect < 1.0 ? 0.50 : 0.34)
+      : (aspect < 1.0 ? 0.42 : 0.30);
+    const clampedVx = Math.max(-7.5, Math.min(7.5, vx));
+    // Combine actual swept spatial distance (dx) + velocity wake so BOTH slow caresses & fast flicks feel super responsive!
+    const velDrive = (dx * (isPressed ? 14.5 : 8.8) + clampedVx * dt * (isPressed ? 6.4 : 3.8)) * heightWeight;
+    const posDrive = dx * (isPressed ? 1.38 : 0.68) * heightWeight;
+
+    for (let z = 0; z < GRID_Z; z++) {
+      const depthWeight = LAYER_TOUCH[z];
+      for (let i = 0; i < GRID_X; i++) {
+        const cellX = (i / (GRID_X - 1)) * 2.5 - 1.25;
+        const clampedX = Math.max(minX, Math.min(maxX, cellX));
+        const dist = Math.abs(cellX - clampedX);
+        if (dist < radius) {
+          const u = dist / radius;
+          const f = 1.0 - u * u;
+          const f2 = f * f;
+          const idx = z * GRID_X + i;
+          // Immediate silky tactile yield directly under finger/cursor + lush momentum wake!
+          fieldPos[idx] = Math.max(-2.15, Math.min(2.15, fieldPos[idx] + posDrive * f2 * depthWeight));
+          fieldVel[idx] = Math.max(-6.2, Math.min(6.2, fieldVel[idx] + velDrive * f2 * depthWeight));
+        }
+      }
+    }
+  }
+
+  function handleSwipeFluff(wx, wy, dx, vx, speed, isPressed) {
+    if (wy > 0.68 && !isPressed) return;
+    const sign = Math.abs(dx) > 0.012 ? Math.sign(dx) : 0;
+    let reversalBonus = 0;
+    if (sign !== 0 && lastSign !== 0 && sign !== lastSign) {
+      reversalBonus = (isPressed ? 0.24 : 0.12) + Math.min(speed * 0.04, 0.18);
+      recentReversals = Math.min(5.0, recentReversals + (isPressed ? 1.0 : 0.4));
+    }
+    if (sign !== 0) lastSign = sign;
+
+    const hoverScale = isPressed ? 1.0 : 0.45;
+    swipeFrequency = Math.min(1.65, swipeFrequency + (Math.abs(dx) * 0.68 + Math.min(speed * 0.02, 0.12) + reversalBonus) * hoverScale);
+
+    // Queue staggered wisps gradually instead of exploding a huge clump in one frame!
+    lastBrushX = wx;
+    lastBrushY = Math.max(-0.10, Math.min(0.45, wy));
+    lastBrushVx = vx;
+    if (swipeFrequency > 0.28) {
+      const intensity = Math.min(1.0, (swipeFrequency - 0.26) / 0.80);
+      const add = (Math.abs(dx) * 3.4 + reversalBonus * 2.2) * (0.45 + intensity * 1.15) * hoverScale;
+      pendingFluff = Math.min(14.0, pendingFluff + add);
+    } else if (speed > 1.15 && Math.random() < 0.06 * hoverScale) {
+      pendingFluff = Math.min(14.0, pendingFluff + 0.55);
+    }
+  }
+
+  const CORNERS = [[-1,-1],[1,-1],[-1,1],[-1,1],[1,-1],[1,1]];
+
+  function packU16(val, halfRange) {
+    const norm = Math.max(0, Math.min(1, val / (halfRange * 2) + 0.5));
+    return Math.round(norm * 65535);
+  }
+  function hash1(n) {
+    const x = Math.sin(n * 127.1 + 311.7) * 43758.5453123;
+    return x - Math.floor(x);
+  }
+
+  function updatePhysics(dt, t) {
+    pointerIdleTimer += dt;
+    if (pointerActive && pointerIdleTimer < 0.28) {
+      // Crisp, near-zero-latency finger tracking while staying butter-smooth across frames
+      const followRate = pointerDown ? 36.0 : 22.0;
+      const follow = 1.0 - Math.exp(-dt * followRate);
+      prevSmoothX = smoothX;
+      smoothX += (targetX - smoothX) * follow;
+      smoothY += (targetY - smoothY) * follow;
+      const dx = smoothX - prevSmoothX;
+      const instVx = dx / Math.max(0.004, dt);
+      smoothVx += (instVx - smoothVx) * (1.0 - Math.exp(-dt * 20.0));
+      const speed = Math.abs(smoothVx);
+      if (speed > 0.03 || Math.abs(dx) > 0.0012) {
+        applyContinuousBrush(prevSmoothX, smoothX, smoothY, dx, smoothVx, speed, dt, pointerDown);
+        handleSwipeFluff(smoothX, smoothY, dx, smoothVx, speed, pointerDown);
+      }
+    } else {
+      smoothVx *= Math.exp(-dt * 8.0);
+    }
+
+    swipeFrequency = Math.max(0, swipeFrequency - dt * (0.45 + swipeFrequency * 0.34));
+    recentReversals = Math.max(0, recentReversals - dt * 0.55);
+    globalAgitation += (Math.min(1, swipeFrequency) - globalAgitation) * Math.min(1, dt * 5.0);
+
+    // 3-substep under-damped traveling-wave elastic reed solver + depth cascade + supple inertial tip-lag
+    // (Natural ζ ≈ 0.23 -> bows deeply with finger, ripples outward across marsh, springs back in 2-3 organic swings!)
+    const SUBSTEPS = 3;
+    const sdt = dt / SUBSTEPS;
+    const stiffness   = 5.4;
+    const damping     = 1.08;
+    const coupling    = 22.0;
+    const velCoupling = 2.0;
+    const zCoupling   = 2.6;
+    const lagStiff    = 9.2;
+    const lagDamp     = 2.15;
+
+    for (let step = 0; step < SUBSTEPS; step++) {
+      const ts = t + step * sdt;
+      for (let z = 0; z < GRID_Z; z++) {
+        const row = z * GRID_X;
+        const zPhase = z * 0.58;
+        for (let i = 0; i < GRID_X; i++) {
+          const idx = row + i;
+          const pos = fieldPos[idx], vel = fieldVel[idx];
+          const left   = i > 0 ? fieldPos[idx - 1] : pos;
+          const right  = i < GRID_X - 1 ? fieldPos[idx + 1] : pos;
+          const vLeft  = i > 0 ? fieldVel[idx - 1] : vel;
+          const vRight = i < GRID_X - 1 ? fieldVel[idx + 1] : vel;
+          // Depth ripple: front layer wake flows organically backward through mid & far layers
+          const frontPos = z < GRID_Z - 1 ? fieldPos[idx + GRID_X] : pos;
+          const worldX = (i / (GRID_X - 1)) * 2.5 - 1.25;
+
+          const gustSwell = 0.58 + 0.42 * Math.sin(ts * 0.32 - worldX * 0.48 + zPhase);
+          const windForce = (
+            Math.sin(ts * 0.62 - worldX * 1.18 + zPhase) * 0.62 +
+            Math.sin(ts * 1.15 - worldX * 2.10 + zPhase * 1.35) * 0.24 +
+            Math.sin(ts * 0.36 + worldX * 0.68) * 0.18
+          ) * gustSwell;
+
+          const acc = -stiffness * pos
+                    - damping * vel
+                    + coupling * (left + right - 2.0 * pos)
+                    + velCoupling * (vLeft + vRight - 2.0 * vel)
+                    + zCoupling * (frontPos - pos)
+                    + windForce;
+          const newVel = Math.max(-6.4, Math.min(6.4, vel + acc * sdt));
+          const newPos = Math.max(-2.25, Math.min(2.25, pos + newVel * sdt));
+          fieldVel[idx] = newVel;
+          fieldPos[idx] = newPos;
+
+          // Supple inertial tip-follow spring -> creates genuine S-curve follow-through & graceful tip flick on rebound!
+          const lPos = fieldLag[idx], lVel = fieldLagVel[idx];
+          const lAcc = lagStiff * (newPos - lPos) - lagDamp * lVel;
+          const newLVel = Math.max(-6.4, Math.min(6.4, lVel + lAcc * sdt));
+          fieldLagVel[idx] = newLVel;
+          fieldLag[idx] = Math.max(-2.3, Math.min(2.3, lPos + newLVel * sdt));
+        }
+      }
+    }
+
+    // Pack full 16-bit fieldPos (RG) & 16-bit fieldLag (BA) into 64x4 RGBA8 fieldTex
+    for (let idx = 0; idx < GRID_X * GRID_Z; idx++) {
+      const p16 = packU16(fieldPos[idx], 2.4);
+      const l16 = packU16(fieldLag[idx], 2.4);
+      const b = idx * 4;
+      fieldBytes[b + 0] = (p16 >> 8) & 255;
+      fieldBytes[b + 1] = p16 & 255;
+      fieldBytes[b + 2] = (l16 >> 8) & 255;
+      fieldBytes[b + 3] = l16 & 255;
+    }
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, fieldTex);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, GRID_X, GRID_Z, gl.RGBA, gl.UNSIGNED_BYTE, fieldBytes);
+
+    // Staggered organic fluff release: trickle at most 1 delicate wisp per ~0.06–0.12s (ZERO sudden clump bursts!)
+    let activeCount = 0;
+    let activeLensHero = null;
+    for (let i = 0; i < MAX_FLUFF; i++) {
+      if (fluffList[i].active) {
+        activeCount++;
+        if (fluffList[i].isLensHero) activeLensHero = fluffList[i];
+      }
+    }
+
+    lensCooldown = Math.max(0, lensCooldown - dt);
+    emitCooldown = Math.max(0, emitCooldown - dt);
+    if (pendingFluff >= 1.0 && emitCooldown <= 0 && activeCount < 38) {
+      pendingFluff -= 1.0;
+      const intensity = Math.min(1.0, globalAgitation);
+      const toCamera = Math.random() < (0.48 + intensity * 0.28);
+      const jitterX = Math.max(-1.0, Math.min(1.0, lastBrushX + (Math.random() - 0.5) * 0.62));
+      // Rare poetic lens-crossing hero wisp: ONLY on rhythmic back-and-forth swiping (NEVER idle or single sweep) AND after 16–22s cooldown!
+      const makeHero = !activeLensHero && lensCooldown <= 0 && recentReversals >= 1.8 && swipeFrequency > 0.78 && toCamera && Math.random() < 0.58;
+      spawnFluff(jitterX, lastBrushY, lastBrushVx * 0.22, toCamera, intensity, makeHero);
+      if (makeHero) {
+        // Reserve cooldown immediately so two hero wisps can never overlap
+        lensCooldown = 16.0 + Math.random() * 6.0;
+        lensBlurAge = 0.0;
+        lensHadBlur = false;
+      }
+      emitCooldown = (0.115 - intensity * 0.052) * (0.72 + Math.random() * 0.56);
+    } else if (pendingFluff > 0) {
+      pendingFluff = Math.max(0, pendingFluff - dt * 1.1);
+    }
+
+    // Gentle idle ambient breeze detaches an occasional solitary wisp (NEVER triggers lens blur!)
+    if (activeCount < 8 && Math.random() < dt * 0.45) {
+      spawnFluff((Math.random() - 0.5) * 1.6, 0.06 + Math.random() * 0.42, 0.14, Math.random() < 0.24, 0.0, false);
+    }
+
+    // Authentic featherweight reed-fluff aerodynamics + hero lens-pass optical focus-pull tracking
+    let targetLensBlur = 0.0;
+    const focal = 1.48;
+    for (let i = 0; i < MAX_FLUFF; i++) {
+      const p = fluffList[i];
+      if (!p.active) continue;
+      p.age += dt;
+      if (p.age >= p.life || p.z < 0.15) {
+        p.active = false;
+        p.isLensHero = false;
+        continue;
+      }
+      const s = p.seed * 31.4;
+      if (p.isLensHero) {
+        const distZ = Math.max(0.20, p.z);
+        const scX = distZ * aspect / focal;
+        const scY = distZ / focal;
+        const steerX = (p.goalX - p.x) * 1.12 + Math.sin(t * 1.05 + s) * 0.15 * scX;
+        const steerY = (p.goalY - p.y) * 1.12 + Math.cos(t * 0.88 + s) * 0.11 * scY;
+        p.vx += (steerX - p.vx * 1.75) * dt;
+        p.vy += (steerY - p.vy * 1.75) * dt;
+        // Air-cushion deceleration: steady visible glide from reeds -> gentle unhurried float across the lens glass
+        const targetVz = p.z > 0.88 ? -0.58 : -0.40;
+        p.vz += (targetVz - p.vz * 0.95) * dt;
+      } else {
+        const eddyX = Math.sin(t * 0.92 + p.y * 2.2 + s) * 0.28
+                    + Math.cos(t * 1.68 + p.z * 1.7 + s * 1.3) * 0.10 + 0.10;
+        const eddyY = Math.cos(t * 0.78 + p.x * 1.8 + s) * 0.18
+                    + Math.sin(t * 1.42 + s * 0.7) * 0.06 + 0.055;
+        p.vx += (eddyX - p.vx * 1.45) * dt;
+        p.vy += (eddyY - p.vy * 1.35) * dt;
+        if (p.cameraBound) {
+          const zEddy = -0.46 - 0.18 * Math.sin(t * 0.85 + s);
+          p.vz += (zEddy - p.vz * 0.92) * dt;
+        }
+      }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.z += p.vz * dt;
+      p.rot += (p.vrot * 0.55 + Math.sin(t * 1.35 + s) * 0.42) * dt;
+
+      // Focus pulls ONLY once the visibly approaching hero wisp enters macro foreground (z < 0.86 -> 0.18)
+      if (p.isLensHero && p.z < 0.86 && p.z > 0.18) {
+        const clipX = p.x * focal / (p.z * aspect);
+        const clipY = p.y * focal / p.z;
+        const uvX = clipX * 0.5 + 0.5;
+        const uvY = clipY * 0.5 + 0.5;
+        if (uvX > 0.04 && uvX < 0.96 && uvY > 0.04 && uvY < 0.96 && lensBlurAge < 2.4) {
+          lensBlurAge += dt;
+          lensHadBlur = true;
+          lensPosX += (uvX - lensPosX) * Math.min(1, dt * 6.5);
+          lensPosY += (uvY - lensPosY) * Math.min(1, dt * 6.5);
+          // Zero-slope S-curve bell (sin^2.15): whisper-soft onset as fluff nears lens, creamy peak at macro pass, silky return!
+          const zProg = Math.max(0, Math.min(1, (0.86 - p.z) / 0.68));
+          const zBell = Math.pow(Math.sin(zProg * Math.PI), 2.15);
+          const timeCap = Math.min(1, Math.max(0, (2.4 - lensBlurAge) / 0.60));
+          targetLensBlur = Math.max(targetLensBlur, zBell * timeCap * 0.88);
+        }
+      }
+    }
+
+    // Gentle cinema-prime autofocus breathing smoothly out & pulling crisp focus right back in
+    const easeRate = targetLensBlur > lensBlur ? 2.6 : 2.1;
+    lensBlur += (targetLensBlur - lensBlur) * Math.min(1, dt * easeRate);
+    if (lensBlur < 0.002) lensBlur = 0.0;
+    if (lensHadBlur && targetLensBlur === 0 && lensBlur < 0.02) {
+      // Lock out for 16–22s AFTER the blur finishes so the scene stays clear almost all the time!
+      lensCooldown = Math.max(lensCooldown, 16.0 + Math.random() * 6.0);
+      lensHadBlur = false;
+    }
+  }
+
+  function packFluffBuffers() {
+    let midCount = 0, nearCount = 0;
+    const active = [];
+    for (let i = 0; i < MAX_FLUFF; i++) { if (fluffList[i].active) active.push(fluffList[i]); }
+    active.sort((a, b) => b.z - a.z);
+
+    for (let i = 0; i < active.length; i++) {
+      const p = active[i];
+      const fadeIn = Math.min(1, p.age / 0.32);
+      const fadeOut = Math.min(1, (1 - p.age / p.life) / 0.32);
+      const lensFade = Math.min(1, Math.max(0, (p.z - 0.15) / 0.22));
+      const alpha = fadeIn * fadeOut * lensFade;
+      if (alpha <= 0.01) continue;
+
+      const isNear = p.z < 1.55;
+      const arr = isNear ? fluffNearData : fluffMidData;
+      let offset = (isNear ? nearCount : midCount) * 6 * FLUFF_STRIDE;
+      for (let c = 0; c < 6; c++) {
+        arr[offset++] = CORNERS[c][0]; arr[offset++] = CORNERS[c][1];
+        arr[offset++] = p.x; arr[offset++] = p.y; arr[offset++] = p.z;
+        arr[offset++] = p.size; arr[offset++] = p.rot; arr[offset++] = alpha; arr[offset++] = p.seed;
+      }
+      if (isNear) nearCount++; else midCount++;
+    }
+    return { midCount, nearCount };
+  }
+
+  function packSparkles(t) {
+    const sunX = aspect < 1.0 ? 0.57 : 0.62;
+    const sunY = aspect < 1.0 ? 0.75 : 0.73;
+    let offset = 0;
+    let visibleCount = 0;
+
+    // 4 unhurried, widely separated sunlight glints with quiet breathing pauses
+    // (Typically only 1–2 delicate glints twinkle gently at any moment — never crowded!)
+    const periods = [5.4, 6.2, 5.8, 6.9];
+    const phases  = [0.4, 2.3, 4.1, 1.2];
+
+    for (let i = 0; i < NUM_SPARKLES; i++) {
+      const period = periods[i];
+      const tSlot  = (t + phases[i]) / period;
+      const cycle  = Math.floor(tSlot);
+      const uRaw   = tSlot - cycle;
+
+      // Active twinkle occupies first 58% of cycle; silent rest during remaining 42%
+      if (uRaw > 0.58) continue;
+      const u = uRaw / 0.58;
+
+      const lifeEnv = Math.pow(Math.sin(u * Math.PI), 1.85);
+      const shimmer = 0.78 + 0.22 * Math.sin(t * (4.6 + i * 0.8) + cycle * 4.1);
+      const env = lifeEnv * shimmer * (0.86 + 0.22 * globalAgitation) * (1.0 - lensBlur * 0.55);
+      if (env < 0.015) continue;
+
+      const rx = hash1(cycle * 19.3 + i * 11.7 + 1.3);
+      const ry = hash1(cycle * 31.7 + i * 17.3 + 5.7);
+      const rs = hash1(cycle * 11.1 + i * 23.3 + 9.2);
+
+      // Keep the 4 glints in distinct, non-overlapping zones of the painting!
+      let px, py;
+      if (i === 0) {
+        // Gentle glint near the warm watercolor sun's rim
+        const ang = rx * Math.PI * 2;
+        const rad = 0.09 + ry * 0.13;
+        px = Math.max(0.14, Math.min(0.86, sunX + Math.cos(ang) * rad / Math.max(aspect, 0.65)));
+        py = Math.max(0.58, Math.min(0.90, sunY + Math.sin(ang) * rad * 0.72));
+      } else if (i === 1) {
+        // Left-side sunlit reed plume
+        px = 0.12 + rx * 0.34;
+        py = 0.34 + ry * 0.26;
+      } else if (i === 2) {
+        // Right-side sunlit reed plume
+        px = 0.54 + rx * 0.34;
+        py = 0.34 + ry * 0.26;
+      } else {
+        // Delicate sunlight glint dancing along the shallow blue waterline
+        px = 0.14 + rx * 0.72;
+        py = 0.13 + ry * 0.10;
+      }
+
+      px += (u - 0.5) * 0.014;
+      py += Math.sin(u * Math.PI) * 0.006;
+
+      const size = (0.013 + rs * 0.014) * (0.68 + 0.48 * lifeEnv) * (1.0 + 0.12 * globalAgitation);
+      const rot = (rx - 0.5) * 0.24 + u * 0.18;
+
+      for (let c = 0; c < 6; c++) {
+        sparkData[offset++] = CORNERS[c][0];
+        sparkData[offset++] = CORNERS[c][1];
+        sparkData[offset++] = px;
+        sparkData[offset++] = py;
+        sparkData[offset++] = size;
+        sparkData[offset++] = rot;
+        sparkData[offset++] = env;
+      }
+      visibleCount++;
+    }
+    return visibleCount;
+  }
+
+  const skyLocs     = { aPos: gl.getAttribLocation(skyProg, 'aPos'), uTime: gl.getUniformLocation(skyProg, 'uTime'), uAspect: gl.getUniformLocation(skyProg, 'uAspect'), uAgitation: gl.getUniformLocation(skyProg, 'uAgitation') };
+  const waterLocs   = { aPos: gl.getAttribLocation(waterProg, 'aPos'), uTime: gl.getUniformLocation(waterProg, 'uTime'), uAspect: gl.getUniformLocation(waterProg, 'uAspect') };
+  const reedLocs    = { aBase: gl.getAttribLocation(reedProg, 'aBase'), aMeta: gl.getAttribLocation(reedProg, 'aMeta'), aShape: gl.getAttribLocation(reedProg, 'aShape'), uTime: gl.getUniformLocation(reedProg, 'uTime'), uAspect: gl.getUniformLocation(reedProg, 'uAspect'), uAgitation: gl.getUniformLocation(reedProg, 'uAgitation'), uFieldTex: gl.getUniformLocation(reedProg, 'uFieldTex') };
+  const plumeLocs   = { aBase: gl.getAttribLocation(plumeProg, 'aBase'), aMeta: gl.getAttribLocation(plumeProg, 'aMeta'), aQuad: gl.getAttribLocation(plumeProg, 'aQuad'), uTime: gl.getUniformLocation(plumeProg, 'uTime'), uAspect: gl.getUniformLocation(plumeProg, 'uAspect'), uAgitation: gl.getUniformLocation(plumeProg, 'uAgitation'), uFieldTex: gl.getUniformLocation(plumeProg, 'uFieldTex') };
+  const fluffLocs   = { aCorner: gl.getAttribLocation(fluffProg, 'aCorner'), aPos3D: gl.getAttribLocation(fluffProg, 'aPos3D'), aInfo: gl.getAttribLocation(fluffProg, 'aInfo'), uAspect: gl.getUniformLocation(fluffProg, 'uAspect'), uFluffTex: gl.getUniformLocation(fluffProg, 'uFluffTex') };
+  const postLocs    = { aPos: gl.getAttribLocation(postProg, 'aPos'), uScene: gl.getUniformLocation(postProg, 'uScene'), uPaper: gl.getUniformLocation(postProg, 'uPaper'), uRes: gl.getUniformLocation(postProg, 'uRes'), uLensBlur: gl.getUniformLocation(postProg, 'uLensBlur'), uLensPos: gl.getUniformLocation(postProg, 'uLensPos') };
+  const sparkLocs   = { aCorner: gl.getAttribLocation(sparkleProg, 'aCorner'), aSpark: gl.getAttribLocation(sparkleProg, 'aSpark'), aEnv: gl.getAttribLocation(sparkleProg, 'aEnv'), uAspect: gl.getUniformLocation(sparkleProg, 'uAspect') };
+
+  function drawFluffBatch(data, count) {
+    if (count === 0) return;
+    gl.useProgram(fluffProg);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, fluffTex);
+    gl.uniform1i(fluffLocs.uFluffTex, 1);
+    gl.uniform1f(fluffLocs.uAspect, aspect);
+    gl.bindBuffer(gl.ARRAY_BUFFER, FLUFF_BUF);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, data.subarray(0, count * 6 * FLUFF_STRIDE));
+    const stride = FLUFF_STRIDE * 4;
+    gl.enableVertexAttribArray(fluffLocs.aCorner);
+    gl.enableVertexAttribArray(fluffLocs.aPos3D);
+    gl.enableVertexAttribArray(fluffLocs.aInfo);
+    gl.vertexAttribPointer(fluffLocs.aCorner, 2, gl.FLOAT, false, stride, 0);
+    gl.vertexAttribPointer(fluffLocs.aPos3D,  3, gl.FLOAT, false, stride, 8);
+    gl.vertexAttribPointer(fluffLocs.aInfo,   4, gl.FLOAT, false, stride, 20);
+    gl.drawArrays(gl.TRIANGLES, 0, count * 6);
+    gl.disableVertexAttribArray(fluffLocs.aCorner);
+    gl.disableVertexAttribArray(fluffLocs.aPos3D);
+    gl.disableVertexAttribArray(fluffLocs.aInfo);
+  }
+
+  function drawSparkles(count) {
+    if (count === 0) return;
+    gl.useProgram(sparkleProg);
+    gl.uniform1f(sparkLocs.uAspect, aspect);
+    gl.bindBuffer(gl.ARRAY_BUFFER, SPARK_BUF);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, sparkData.subarray(0, count * 6 * SPARK_STRIDE));
+    const stride = SPARK_STRIDE * 4;
+    gl.enableVertexAttribArray(sparkLocs.aCorner);
+    gl.enableVertexAttribArray(sparkLocs.aSpark);
+    gl.enableVertexAttribArray(sparkLocs.aEnv);
+    gl.vertexAttribPointer(sparkLocs.aCorner, 2, gl.FLOAT, false, stride, 0);
+    gl.vertexAttribPointer(sparkLocs.aSpark,  4, gl.FLOAT, false, stride, 8);
+    gl.vertexAttribPointer(sparkLocs.aEnv,    1, gl.FLOAT, false, stride, 24);
+    gl.drawArrays(gl.TRIANGLES, 0, count * 6);
+    gl.disableVertexAttribArray(sparkLocs.aCorner);
+    gl.disableVertexAttribArray(sparkLocs.aSpark);
+    gl.disableVertexAttribArray(sparkLocs.aEnv);
+  }
+
+  let prevTime = performance.now();
+  let smoothDt = 0.016;
+  function render(now) {
+    requestAnimationFrame(render);
+    const rawDt = Math.min(0.033, Math.max(0.002, (now - prevTime) / 1000));
+    prevTime = now;
+    smoothDt += (rawDt - smoothDt) * 0.25;
+    const t = now * 0.001;
+
+    updatePhysics(smoothDt, t);
+    const { midCount, nearCount } = packFluffBuffers();
+    const sparkCount = packSparkles(t);
+
+    // PASS 1: Render pastel scene onto FBO
+    gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO);
+    gl.viewport(0, 0, fbWidth, fbHeight);
+    gl.disable(gl.BLEND);
+
+    gl.useProgram(skyProg);
+    gl.bindBuffer(gl.ARRAY_BUFFER, QUAD_BUF);
+    gl.enableVertexAttribArray(skyLocs.aPos);
+    gl.vertexAttribPointer(skyLocs.aPos, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform1f(skyLocs.uTime, t);
+    gl.uniform1f(skyLocs.uAspect, aspect);
+    gl.uniform1f(skyLocs.uAgitation, globalAgitation);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.disableVertexAttribArray(skyLocs.aPos);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, fieldTex);
+
+    for (let layer = 0; layer < 4; layer++) {
+      gl.useProgram(reedProg);
+      gl.uniform1i(reedLocs.uFieldTex, 0);
+      gl.uniform1f(reedLocs.uTime, t);
+      gl.uniform1f(reedLocs.uAspect, aspect);
+      gl.uniform1f(reedLocs.uAgitation, globalAgitation);
+      gl.bindBuffer(gl.ARRAY_BUFFER, REED_BUF);
+      gl.enableVertexAttribArray(reedLocs.aBase);
+      gl.enableVertexAttribArray(reedLocs.aMeta);
+      gl.enableVertexAttribArray(reedLocs.aShape);
+      gl.vertexAttribPointer(reedLocs.aBase,  2, gl.FLOAT, false, 40, 0);
+      gl.vertexAttribPointer(reedLocs.aMeta,  4, gl.FLOAT, false, 40, 8);
+      gl.vertexAttribPointer(reedLocs.aShape, 4, gl.FLOAT, false, 40, 24);
+      gl.drawArrays(gl.TRIANGLES, reedRanges[layer].start, reedRanges[layer].count);
+      gl.disableVertexAttribArray(reedLocs.aBase);
+      gl.disableVertexAttribArray(reedLocs.aMeta);
+      gl.disableVertexAttribArray(reedLocs.aShape);
+
+      if (plumeRanges[layer].count > 0) {
+        gl.useProgram(plumeProg);
+        gl.uniform1i(plumeLocs.uFieldTex, 0);
+        gl.uniform1f(plumeLocs.uTime, t);
+        gl.uniform1f(plumeLocs.uAspect, aspect);
+        gl.uniform1f(plumeLocs.uAgitation, globalAgitation);
+        gl.bindBuffer(gl.ARRAY_BUFFER, PLUME_BUF);
+        gl.enableVertexAttribArray(plumeLocs.aBase);
+        gl.enableVertexAttribArray(plumeLocs.aMeta);
+        gl.enableVertexAttribArray(plumeLocs.aQuad);
+        gl.vertexAttribPointer(plumeLocs.aBase, 2, gl.FLOAT, false, 40, 0);
+        gl.vertexAttribPointer(plumeLocs.aMeta, 4, gl.FLOAT, false, 40, 8);
+        gl.vertexAttribPointer(plumeLocs.aQuad, 4, gl.FLOAT, false, 40, 24);
+        gl.drawArrays(gl.TRIANGLES, plumeRanges[layer].start, plumeRanges[layer].count);
+        gl.disableVertexAttribArray(plumeLocs.aBase);
+        gl.disableVertexAttribArray(plumeLocs.aMeta);
+        gl.disableVertexAttribArray(plumeLocs.aQuad);
+      }
+
+      if (layer === 2) {
+        drawFluffBatch(fluffMidData, midCount);
+      }
+    }
+
+    // Translucent chalky sky-blue shallow water veil + coral waterline ribbon
+    gl.useProgram(waterProg);
+    gl.bindBuffer(gl.ARRAY_BUFFER, QUAD_BUF);
+    gl.enableVertexAttribArray(waterLocs.aPos);
+    gl.vertexAttribPointer(waterLocs.aPos, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform1f(waterLocs.uTime, t);
+    gl.uniform1f(waterLocs.uAspect, aspect);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.disableVertexAttribArray(waterLocs.aPos);
+
+    // PASS 2: Ultra-fast Zero-Loop Cold-Press Watercolor Paper + Dry Pastel Stipple
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, fbWidth, fbHeight);
+    gl.disable(gl.BLEND);
+
+    gl.useProgram(postProg);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, sceneTex);
+    gl.uniform1i(postLocs.uScene, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, paperTex);
+    gl.uniform1i(postLocs.uPaper, 1);
+    gl.uniform2f(postLocs.uRes, fbWidth, fbHeight);
+    gl.uniform1f(postLocs.uLensBlur, lensBlur);
+    gl.uniform2f(postLocs.uLensPos, lensPosX, lensPosY);
+    gl.bindBuffer(gl.ARRAY_BUFFER, QUAD_BUF);
+    gl.enableVertexAttribArray(postLocs.aPos);
+    gl.vertexAttribPointer(postLocs.aPos, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.disableVertexAttribArray(postLocs.aPos);
+
+    // PASS 3: Zero-overhead Dynamic Sunlight Sparkles + Foreground Velvety Hazy Fluff
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    drawSparkles(sparkCount);
+    drawFluffBatch(fluffNearData, nearCount);
+  }
+
+  requestAnimationFrame(render);
+})();
+</script>
 </body>
 </html>
