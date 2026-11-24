@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vibe Diary — Quiet Daily Atmosphere & Mood Journal</title>
+  <meta
+    name="description"
+    content="Vibe Diary is a calm, local-first daily journal for capturing the mood, light, soundtrack, and atmosphere of each day."
+  />
+  <meta property="og:title" content="Vibe Diary — Quiet Daily Atmosphere & Mood Journal" />
+  <meta
+    property="og:description"
+    content="A quiet, tactile notebook in your browser for recording daily vibes, reflections, soundtracks, and moments."
+  />
+  <meta property="og:type" content="website" />
+  <link
+    rel="icon"
+    type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23F6F2EB'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23C87D4B'/%3E%3C/svg%3E"
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Noto+Sans+SC:wght@400;500&family=Noto+Serif+SC:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#top" id="brand-link">
+        <span class="brand-mark">
+          <span class="brand-dot" aria-hidden="true"></span>
+          <span id="brand-name">Vibe Diary</span>
+        </span>
+        <span class="header-date" id="header-date"></span>
+      </a>
+
+      <nav class="header-actions" aria-label="Journal tools">
+        <button
+          type="button"
+          class="icon-btn lang-toggle"
+          id="lang-toggle-btn"
+          title="Switch language"
+          aria-label="Switch language"
+        >
+          中文
+        </button>
+
+        <button
+          type="button"
+          class="icon-btn"
+          id="theme-toggle-btn"
+          title="Switch theme"
+          aria-label="Switch theme"
+        >
+          <svg id="theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+          <svg id="theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true" hidden>
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          class="icon-btn"
+          id="backup-open-btn"
+          title="Export & Backup"
+          aria-label="Export and Backup"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          <span id="backup-btn-label">Backup</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="studio" id="top">
+    <section class="masthead" aria-labelledby="masthead-heading">
+      <h1 class="masthead-greeting" id="masthead-heading"></h1>
+      <p class="masthead-sub" id="masthead-subtitle"></p>
+
+      <div class="vibe-strip-wrap" aria-label="Recent atmosphere palette">
+        <div class="vibe-strip" id="vibe-strip"></div>
+        <div class="strip-meta" id="strip-meta"></div>
+      </div>
+    </section>
+
+    <section class="composer" aria-label="Write a new diary entry" id="composer-section">
+      <div class="editing-banner" id="editing-banner" hidden>
+        <span id="editing-banner-text"></span>
+        <button type="button" class="editing-cancel" id="editing-cancel-btn"></button>
+      </div>
+
+      <form id="entry-form" novalidate>
+        <div class="composer-top">
+          <div class="vibe-picker" id="vibe-picker" role="group" aria-label="Select today's vibe"></div>
+
+          <label class="date-field" for="entry-date-input">
+            <span class="sr-only" id="date-field-label">Entry date</span>
+            <input type="date" id="entry-date-input" name="date" />
+          </label>
+        </div>
+
+        <label class="sr-only" for="entry-title-input" id="title-sr-label">Entry title</label>
+        <input
+          type="text"
+          id="entry-title-input"
+          class="composer-title"
+          maxlength="120"
+          autocomplete="off"
+        />
+
+        <label class="sr-only" for="entry-body-input" id="body-sr-label">Journal entry</label>
+        <textarea
+          id="entry-body-input"
+          class="composer-body"
+          rows="5"
+        ></textarea>
+
+        <div class="photo-preview-wrap" id="photo-preview-wrap" hidden>
+          <img id="photo-preview-img" class="photo-preview" alt="Attached moment" />
+          <button
+            type="button"
+            class="photo-remove-btn"
+            id="photo-remove-btn"
+            aria-label="Remove photo"
+          >
+            &times;
+          </button>
+        </div>
+
+        <div class="sensory-row">
+          <label class="sensory-field" for="entry-music-input">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+            <input type="text" id="entry-music-input" maxlength="80" autocomplete="off" />
+          </label>
+
+          <label class="sensory-field" for="entry-place-input">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            <input type="text" id="entry-place-input" maxlength="80" autocomplete="off" />
+          </label>
+
+          <label class="photo-attach-label" for="entry-photo-input" id="photo-attach-label">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+            <span id="photo-attach-text">Photo</span>
+            <input type="file" id="entry-photo-input" accept="image/*" class="sr-only" />
+          </label>
+        </div>
+
+        <div class="composer-footer">
+          <div class="composer-meta">
+            <span id="word-count">0 words</span>
+            <span class="draft-status" id="draft-status"></span>
+          </div>
+
+          <button type="submit" class="btn-primary" id="save-entry-btn" disabled>
+            <span id="save-btn-label">Save Entry</span>
+            <span class="kbd-hint" aria-hidden="true">⌘↵</span>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section aria-labelledby="archive-heading">
+      <div class="archive-header">
+        <h2 class="section-heading" id="archive-heading"></h2>
+
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="search"
+            id="search-input"
+            class="search-input"
+            autocomplete="off"
+          />
+          <button
+            type="button"
+            id="search-clear-btn"
+            class="search-clear"
+            aria-label="Clear search"
+            hidden
+          >
+            &times;
+          </button>
+        </div>
+      </div>
+
+      <div class="filter-bar" id="filter-bar" role="group" aria-label="Filter entries by vibe"></div>
+
+      <div class="timeline" id="timeline" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p class="footer-note" id="footer-privacy-note"></p>
+    <p class="footer-note" id="footer-shortcut-note"></p>
+  </footer>
+
+  <!-- Entry Reader Modal -->
+  <div
+    class="modal-backdrop"
+    id="reader-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="reader-title"
+    hidden
+  >
+    <div class="modal-panel">
+      <div class="modal-header">
+        <div class="entry-meta-left" id="reader-meta"></div>
+        <button type="button" class="modal-close" id="reader-close-btn" aria-label="Close">
+          &times;
+        </button>
+      </div>
+
+      <h3 class="reader-title" id="reader-title"></h3>
+      <p class="reader-body" id="reader-body"></p>
+      <img id="reader-photo" class="reader-photo" alt="Journal moment" hidden />
+      <div class="entry-anchors" id="reader-anchors" hidden></div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="reader-edit-btn"></button>
+        <button type="button" class="btn-secondary btn-danger" id="reader-delete-btn"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Backup & Data Portability Modal -->
+  <div
+    class="modal-backdrop"
+    id="backup-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="backup-modal-title"
+    hidden
+  >
+    <div class="modal-panel compact">
+      <div class="modal-header">
+        <h3 class="section-heading" id="backup-modal-title"></h3>
+        <button type="button" class="modal-close" id="backup-close-btn" aria-label="Close">
+          &times;
+        </button>
+      </div>
+
+      <div class="data-section">
+        <p class="data-note" id="backup-modal-desc"></p>
+
+        <div class="data-actions-grid">
+          <button type="button" class="btn-secondary" id="export-json-btn"></button>
+          <button type="button" class="btn-secondary" id="export-md-btn"></button>
+        </div>
+
+        <label class="btn-secondary" for="import-json-input" id="import-json-label">
+          <span id="import-json-text"></span>
+          <input type="file" id="import-json-input" accept="application/json,.json" class="sr-only" />
+        </label>
+
+        <div class="data-divider"></div>
+
+        <button type="button" class="btn-secondary btn-danger" id="clear-samples-btn" hidden></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span id="toast-message"></span>
+    <button type="button" class="toast-action" id="toast-action-btn" hidden></button>
+  </div>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>
