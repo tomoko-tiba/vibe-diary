@@ -473,7 +473,7 @@
     }
 
     // True inextensible elastic reed cantilever (4-point midpoint arc integral in square screen space!)
-    // Preserves exact stalk length while bowing gracefully up to ~74 deg — ZERO rubber stretching or stiff shearing!
+    // Preserves exact stalk length while expressing organic botanical lean & bowing gracefully up to ~74 deg!
     vec2 evalElasticStalk(vec2 base, float h, float t, float bend, float tipLag, float lean, float breathWave) {
       float maxAngle = softBend(bend, 1.08);
       float whipAng  = softBend(tipLag, 0.62);
@@ -481,7 +481,8 @@
       float ds = t * 0.25;
       for (int k = 0; k < 4; k++) {
         float s = (float(k) + 0.5) * ds;
-        float th = lean * 0.30 * s
+        // Natural rhizome fan at root + graceful upper botanical arch (breaks parallel vertical poles!)
+        float th = lean * (0.20 + 0.46 * pow(s, 1.32))
                  + maxAngle * pow(s, 1.38)
                  + whipAng  * pow(s, 2.25)
                  + breathWave * s * s;
@@ -494,13 +495,13 @@
   `;
 
   // =========================================================================
-  // 2. TENDER OLIVE-SAGE REED STALKS, GRACEFUL ARCHING LEAVES & BANK ACCENTS
+  // 2. TENDER OLIVE-SAGE REED STALKS, STAGGERED LANCEOLATE LEAVES & TUFT SHOOTS
   // =========================================================================
   const reedVS = `
     precision highp float;
-    attribute vec2 aBase;
-    attribute vec4 aMeta;
-    attribute vec4 aShape;
+    attribute vec3 aBase;   // xy = root position, z = organic botanical lean
+    attribute vec4 aMeta;   // x = height, y = width, z = depth, w = parent reed seed (shared by stalk + leaves!)
+    attribute vec4 aShape;  // x = t, y = side, z = kind (0=stalk, 1=left leaf, 2=right leaf, 3=tuft grass), w = attachT/flex
 
     uniform float uTime;
     uniform float uAspect;
@@ -522,13 +523,14 @@
       float w = aMeta.y;
       float depth = aMeta.z;
       float seed = aMeta.w;
+      float lean = aBase.z;
       float t = aShape.x;
       float side = aShape.y;
       float kind = aShape.z;
       float attachT = aShape.w;
 
       // Per-reed micro spatial phase offset breaks rigid lockstep so adjacent reeds ripple like liquid silk!
-      float phaseShift = (fract(seed * 23.17) - 0.5) * 0.11;
+      float phaseShift = (fract(seed * 23.17) - 0.5) * 0.12;
       vec2 fld = sampleElasticField(aBase.x + phaseShift, depth);
       float fieldBend = fld.x;
       float fieldLag  = fld.y;
@@ -544,7 +546,6 @@
       // Taller stalks flex deeper & more gracefully; shorter reeds rebound brisker
       float heightFlex = clamp(h / 1.05, 0.68, 1.36);
       float flex = (0.78 + fract(seed * 13.37) * 0.44) * heightFlex;
-      float lean = (fract(seed * 7.13) - 0.5) * 0.42;
       float depthAmp = 0.62 + depth * 0.58;
 
       float bend   = (fieldBend * flex + breeze) * depthAmp;
@@ -555,53 +556,76 @@
       float halfW;
 
       if (kind < 0.5) {
-        vec2 p0 = evalElasticStalk(aBase, h, t, bend, tipLag, lean, breathWave);
-        vec2 p1 = evalElasticStalk(aBase, h, min(1.0, t + 0.03), bend, tipLag, lean, breathWave);
+        vec2 p0 = evalElasticStalk(aBase.xy, h, t, bend, tipLag, lean, breathWave);
+        vec2 p1 = evalElasticStalk(aBase.xy, h, min(1.0, t + 0.03), bend, tipLag, lean, breathWave);
         pos = p0;
         tangent = normalize(p1 - p0 + vec2(0.0001, 0.001));
-        halfW = max(w * mix(1.08, 0.40, t), 0.0021);
+        halfW = max(w * mix(1.06, 0.38, t), 0.0019);
       } else if (kind < 2.5) {
-        // Restored graceful arching botanical reed leaf flowing organically in the stalk's bent frame!
+        // Staggered calligraphic lanceolate reed leaves — 100% locked to parent stalk, 3 varied botanical postures!
         float dir = kind < 1.5 ? -1.0 : 1.0;
-        vec2 anchor = evalElasticStalk(aBase, h, attachT, bend, tipLag, lean, breathWave);
-        vec2 ancNext = evalElasticStalk(aBase, h, min(1.0, attachT + 0.04), bend, tipLag, lean, breathWave);
+        vec2 anchor = evalElasticStalk(aBase.xy, h, attachT, bend, tipLag, lean, breathWave);
+        vec2 ancNext = evalElasticStalk(aBase.xy, h, min(1.0, attachT + 0.04), bend, tipLag, lean, breathWave);
         vec2 sqUp = normalize(vec2((ancNext.x - anchor.x) * uAspect, ancNext.y - anchor.y) + vec2(0.0001, 0.001));
         vec2 sqRight = vec2(sqUp.y, -sqUp.x);
 
-        float leafLen = h * (0.20 + fract(seed * 19.1 + attachT) * 0.14);
-        float leafFlutter = sin(uTime * 2.15 + phase + attachT * 5.0) * (0.045 + 0.085 * localAgit);
-        float windPush = softBend(bend * 0.48 + tipLag * 0.65, 0.72) + leafFlutter;
+        // Per-leaf hashes derived from (seed, attachT) so every leaf has unique length, pitch & curve
+        float lH1 = fract(seed * 37.3 + attachT * 91.7);
+        float lH2 = fract(seed * 53.1 + attachT * 43.9);
+        float lH3 = fract(seed * 17.9 + attachT * 67.3);
 
-        // Emerges smoothly along stalk, arches gracefully outward & slightly down at its delicate tapered tip
-        float spread = dir * (0.50 + 0.24 * fract(seed * 23.7)) + windPush * 0.52;
-        float droop  = 0.16 + 0.24 * fract(seed * 31.3) + abs(windPush) * 0.12;
-        vec2 sqC1 = (sqUp * 0.54 + sqRight * (spread * 0.48)) * leafLen;
-        vec2 sqC2 = (sqUp * (0.40 - droop) + sqRight * spread) * leafLen;
-        sqC2.y -= leafLen * (0.14 + 0.12 * fract(seed * 11.9));
+        // Keep blade span well-proportioned on both narrow portrait phones and wide desktop monitors
+        float portScale = uAspect < 0.85 ? mix(0.76, 0.94, clamp((uAspect - 0.38) / 0.47, 0.0, 1.0)) : 0.96;
+        float leafLen = clamp(h * (0.15 + lH1 * 0.16), 0.11, 0.36) * portScale;
+        float leafFlutter = sin(uTime * 2.25 + phase + attachT * 6.3) * (0.040 + 0.085 * localAgit);
+        float windPush = softBend(bend * 0.46 + tipLag * 0.62, 0.72) + leafFlutter;
+
+        // 3 natural botanical postures: ascending sword blade, graceful sweeping ribbon, or occasional gentle lower nod
+        float posture = lH2;
+        vec2 sqC1, sqC2;
+        if (posture < 0.44 || attachT > 0.52) {
+          // Ascending slender sword leaf angling crisply upward along the stalk
+          float outA = dir * (0.24 + 0.20 * lH3) + windPush * 0.38;
+          sqC1 = (sqUp * 0.62 + sqRight * (outA * 0.44)) * leafLen;
+          sqC2 = (sqUp * (0.86 + 0.12 * lH1) + sqRight * outA) * leafLen;
+          sqC2.y -= leafLen * 0.03;
+        } else if (posture < 0.82) {
+          // Graceful sweeping lanceolate ribbon arching smoothly outward with an airy tapered tip
+          float outB = dir * (0.44 + 0.24 * lH3) + windPush * 0.48;
+          sqC1 = (sqUp * 0.58 + sqRight * (outB * 0.42)) * leafLen;
+          sqC2 = (sqUp * (0.46 + 0.18 * lH1) + sqRight * outB) * leafLen;
+          sqC2.y -= leafLen * (0.06 + 0.06 * lH3);
+        } else {
+          // Occasional relaxed lower nodding blade curving gently toward the marsh water
+          float outC = dir * (0.56 + 0.24 * lH3) + windPush * 0.52;
+          sqC1 = (sqUp * 0.48 + sqRight * (outC * 0.46)) * leafLen;
+          sqC2 = (sqUp * (0.24 + 0.12 * lH1) + sqRight * outC) * leafLen;
+          sqC2.y -= leafLen * (0.13 + 0.07 * lH1);
+        }
 
         float u = 1.0 - t;
         vec2 sqDisp = 2.0 * u * t * sqC1 + t * t * sqC2;
         vec2 sqDeriv = 2.0 * u * sqC1 + 2.0 * t * (sqC2 - sqC1);
         pos = anchor + vec2(sqDisp.x / uAspect, sqDisp.y);
         tangent = normalize(vec2(sqDeriv.x / uAspect, sqDeriv.y) + vec2(0.0001, 0.001));
-        halfW = w * 1.56 * sin(pow(t, 0.58) * 3.14159) * (1.0 - t * 0.34);
-        halfW = max(halfW, 0.0018 * (1.0 - t * 0.45));
+        // Calligraphic watercolor taper: swells gently near lower third, narrows to a razor-delicate pointed tip
+        halfW = w * (1.36 + lH3 * 0.46) * pow(sin(pow(t, 0.54) * 3.14159), 0.78) * (1.0 - t * 0.48);
+        halfW = max(halfW, 0.0009 * (1.0 - t * 0.72));
       } else {
-        // Subtle, delicate short water-edge grass accents hugging the bank softly (never drowning the blue water!)
-        float dir = fract(seed * 41.3) > 0.5 ? 1.0 : -1.0;
-        float archAmt = 0.24 + fract(seed * 17.9) * 0.34;
+        // Organic tufted rhizome shoots hugging each reed cluster softly at varied angles
+        float archAmt = lean;
         float grassBend = softBend(bend * 0.78 + tipLag * 0.60, 0.85) * (0.65 + 0.35 * attachT);
 
-        vec2 sqC1 = vec2((dir * archAmt * 0.36 + grassBend * 0.44) * h, h * 0.64);
-        vec2 sqC2 = vec2((dir * archAmt + grassBend * 0.92) * h, h * (0.90 - 0.20 * archAmt));
+        vec2 sqC1 = vec2((archAmt * 0.42 + grassBend * 0.44) * h, h * 0.64);
+        vec2 sqC2 = vec2((archAmt + grassBend * 0.92) * h, h * (0.90 - 0.18 * abs(archAmt)));
 
         float u = 1.0 - t;
         vec2 sqDisp = 2.0 * u * t * sqC1 + t * t * sqC2;
         vec2 sqDeriv = 2.0 * u * sqC1 + 2.0 * t * (sqC2 - sqC1);
-        pos = aBase + vec2(sqDisp.x / uAspect, sqDisp.y);
+        pos = aBase.xy + vec2(sqDisp.x / uAspect, sqDisp.y);
         tangent = normalize(vec2(sqDeriv.x / uAspect, sqDeriv.y) + vec2(0.0001, 0.001));
-        halfW = w * mix(1.24, 0.06, pow(t, 0.84));
-        halfW = max(halfW, 0.0015 * (1.0 - t * 0.65));
+        halfW = w * mix(1.18, 0.05, pow(t, 0.82));
+        halfW = max(halfW, 0.0012 * (1.0 - t * 0.72));
       }
 
       vec2 sqTan = normalize(vec2(tangent.x * uAspect, tangent.y) + vec2(0.0001, 0.001));
@@ -634,31 +658,32 @@
       vec3 springOlive  = vec3(0.625, 0.728, 0.365);
       vec3 sunlitWheat  = vec3(0.865, 0.798, 0.505);
       vec3 crispSage    = vec3(0.515, 0.635, 0.352);
-      vec3 waterMist    = vec3(0.565, 0.745, 0.815);
+      vec3 waterMist    = vec3(0.585, 0.768, 0.868);
 
       float colorMix = fract(vSeed * 19.7);
       vec3 midTone  = mix(tenderLime, sunlitWheat, smoothstep(0.24, 0.86, colorMix));
       vec3 nearTone = mix(springOlive, crispSage, smoothstep(0.24, 0.86, colorMix));
       if (vKind > 0.5 && vKind < 2.5) {
-        nearTone = mix(nearTone, tenderLime, 0.52);
+        nearTone = mix(nearTone, tenderLime, 0.54);
       }
 
       vec3 col = mix(farMistStraw, midTone, smoothstep(0.0, 0.48, vDepth));
       col = mix(col, nearTone, smoothstep(0.44, 0.96, vDepth));
 
       vec3 tipGold = vec3(0.922, 0.852, 0.535);
-      col = mix(col, tipGold, smoothstep(0.48, 1.0, vT) * 0.44);
+      col = mix(col, tipGold, smoothstep(0.46, 1.0, vT) * 0.46);
       col += vec3(0.052, 0.055, 0.026) * smoothstep(-0.2, 0.8, vSide);
 
-      // Softly dissolve submerged stem segments beneath the waterline so the porcelain-blue water stays luminous & clean!
-      float aboveWater = smoothstep(-0.88, -0.54, vClipY);
-      col = mix(waterMist, col, 0.32 + 0.68 * aboveWater);
+      // Gently dissolve submerged stem bases right beneath the coral waterline — eliminates vertical barcode stripes in water!
+      float aboveWater = smoothstep(-0.75, -0.55, vClipY);
+      float deepWater  = smoothstep(-0.90, -0.66, vClipY);
+      col = mix(waterMist, col, 0.18 + 0.82 * aboveWater);
 
       float softEdge = 1.0 - smoothstep(0.32, 1.0, abs(vSide));
       float baseAlpha = vKind > 2.5
-        ? mix(0.28, 0.58, smoothstep(0.0, 0.75, vDepth))
-        : (vKind > 0.5 ? mix(0.40, 0.82, smoothstep(0.0, 0.66, vDepth)) : mix(0.42, 0.82, smoothstep(0.0, 0.64, vDepth)));
-      float waterFade = mix(0.30, 1.0, aboveWater);
+        ? mix(0.26, 0.56, smoothstep(0.0, 0.75, vDepth))
+        : (vKind > 0.5 ? mix(0.36, 0.80, smoothstep(0.0, 0.68, vDepth)) : mix(0.38, 0.80, smoothstep(0.0, 0.64, vDepth)));
+      float waterFade = mix(0.04, 1.0, aboveWater * 0.82 + deepWater * 0.18);
       gl_FragColor = vec4(col, softEdge * baseAlpha * waterFade);
     }
   `;
@@ -668,7 +693,7 @@
   // =========================================================================
   const plumeVS = `
     precision highp float;
-    attribute vec2 aBase;
+    attribute vec3 aBase;   // xy = root position, z = organic botanical lean (shared with stalk!)
     attribute vec4 aMeta;
     attribute vec4 aQuad;
 
@@ -690,9 +715,10 @@
       float pSize = aMeta.y * hScale;
       float depth = aMeta.z;
       float seed = aMeta.w;
+      float lean = aBase.z;
       float fIdx = aQuad.z;
 
-      float phaseShift = (fract(seed * 23.17) - 0.5) * 0.11;
+      float phaseShift = (fract(seed * 23.17) - 0.5) * 0.12;
       vec2 fld = sampleElasticField(aBase.x + phaseShift, depth);
       float fieldBend = fld.x;
       float fieldLag  = fld.y;
@@ -707,7 +733,6 @@
 
       float heightFlex = clamp(h / 1.05, 0.68, 1.36);
       float flex = (0.78 + fract(seed * 13.37) * 0.44) * heightFlex;
-      float lean = (fract(seed * 7.13) - 0.5) * 0.42;
       float depthAmp = 0.62 + depth * 0.58;
 
       float bend   = (fieldBend * flex + breeze) * depthAmp;
@@ -715,13 +740,13 @@
 
       // Keep panicle fronds tightly nestled at the stalk crown so they stream as ONE cohesive silky plume!
       float attachT = 0.83 + fIdx * 0.030;
-      vec2 tip  = evalElasticStalk(aBase, h, attachT, bend, tipLag, lean, breathWave);
-      vec2 prev = evalElasticStalk(aBase, h, attachT - 0.10, bend, tipLag, lean, breathWave);
+      vec2 tip  = evalElasticStalk(aBase.xy, h, attachT, bend, tipLag, lean, breathWave);
+      vec2 prev = evalElasticStalk(aBase.xy, h, attachT - 0.10, bend, tipLag, lean, breathWave);
 
       vec2 sqDir = normalize(vec2((tip.x - prev.x) * uAspect, tip.y - prev.y) + vec2(0.0001, 0.001));
-      float naturalSide = (fract(seed * 29.1) > 0.28 ? 1.0 : -1.0);
-      // Since sqDir ALREADY follows the true bent cantilever angle, add only gentle silky streaming follow-through!
-      float windBias = softBend(bend * 0.65 + tipLag * 0.85, 0.95) + naturalSide * 0.22;
+      // Organic per-reed plume nodding follows stalk lean naturally + individual asymmetry (never all tilted one way!)
+      float naturalNod = lean * 0.38 + (fract(seed * 29.1) - 0.5) * 0.48;
+      float windBias = softBend(bend * 0.65 + tipLag * 0.85, 0.95) + naturalNod;
       float spreadAngle = (fIdx - 1.45) * 0.115 * (1.0 + 0.22 * localAgit) + windBias * 0.095;
       float gentleWave = sin(uTime * 2.40 + seed * 31.0 + fIdx * 1.9) * (0.022 + 0.044 * localAgit);
       float ang = spreadAngle + gentleWave + clamp(whipDiff * 0.20, -0.22, 0.22);
@@ -732,11 +757,13 @@
 
       float u = aQuad.x, v = aQuad.y;
       float len = pSize * aQuad.w * 1.08;
-      float wid = len * 0.375;
+      // Vary plume slenderness organically between airy wispy feathers & plush velvety panicles
+      float widFactor = mix(0.285, 0.415, fract(seed * 17.3));
+      float wid = len * widFactor;
 
       float arch = v * v * (windBias * 0.22 * len);
       vec2 localSq = fDir * (v * len) + fRight * (u * wid + arch);
-      localSq.y -= v * v * len * 0.18;
+      localSq.y -= v * v * len * (0.14 + 0.08 * fract(seed * 41.7));
 
       vec2 clip = tip + vec2(localSq.x / uAspect, localSq.y);
       vUv = vec2(u * 0.5 + 0.5, v);
@@ -1087,8 +1114,8 @@
   // Automatically scales reed & sedge count with viewport width/aspect so wider
   // screens grow fuller and narrower screens breathe cleanly at identical balance!
   // =========================================================================
-  const BASE_REED_COUNTS  = [56, 48, 40, 30]; // sum = 174 at scale 1.0 -> breathable, lush, never overcrowded!
-  const BASE_SEDGE_COUNTS = [16, 14, 12, 10]; // sum = 52 at scale 1.0 -> clean delicate bank accents (leaves water pure!)
+  const BASE_REED_COUNTS  = [52, 46, 38, 28]; // sum = 164 at scale 1.0 -> organically clustered, breathable & poetic!
+  const BASE_SEDGE_COUNTS = [14, 12, 10, 8];  // sum = 44 at scale 1.0 -> delicate tufted shoots hugging reed roots
   const STALK_SEGS = 8, LEAF_SEGS = 6, SEDGE_SEGS = 4;
   const qPts = [[-1, 0], [1, 0], [-1, 1], [-1, 1], [1, 0], [1, 1]];
 
@@ -1105,97 +1132,209 @@
     if (!force && Math.abs(densityScale - lastBuiltDensity) < 0.04) return;
     lastBuiltDensity = densityScale;
 
-    const mrng = mulberry32(519283);
-    const clumpFreq = 4.2 * Math.max(0.85, Math.min(2.2, curAspect * 1.15));
-    const plumeAspScale = curAspect < 0.85 ? (0.86 + (curAspect / 0.85) * 0.14) : 1.0;
-    const sunValleyX = curAspect < 1.0 ? 0.14 : 0.24;
-    const isWide = curAspect >= 1.1;
+    const mrng = mulberry32(739157);
+    const plumeAspScale = curAspect < 0.85 ? (0.84 + (curAspect / 0.85) * 0.16) : 1.0;
+    const sunWindowX = curAspect < 1.0 ? 0.15 : 0.24;
+    const spreadDiv = Math.max(0.76, Math.sqrt(densityScale));
 
     const reedsByLayer = [[], [], [], []];
+    const clustersByLayer = [[], [], [], []];
+
     for (let layer = 0; layer < 4; layer++) {
-      const count = Math.max(14, Math.round(BASE_REED_COUNTS[layer] * densityScale));
-      for (let i = 0; i < count; i++) {
-        const tInLayer = count > 1 ? i / (count - 1) : 0.5;
-        const depth = (layer + tInLayer) / 4.0;
-        const baseX = tInLayer * 2.52 - 1.26;
-        const clumpPull = Math.sin(baseX * clumpFreq + layer * 1.4) * (0.044 / Math.max(0.85, Math.sqrt(densityScale)));
-        const stratX = baseX + clumpPull + (mrng() - 0.5) * (2.44 / count) * 1.48;
-        const x = Math.max(-1.26, Math.min(1.26, stratX));
+      const targetCount = Math.max(12, Math.round(BASE_REED_COUNTS[layer] * densityScale));
+      const numClusters = Math.max(4, Math.round(targetCount / 4.3));
 
-        // Poetic asymmetric skyline adapting naturally to portrait & wide landscape compositions
-        const leftCrest = Math.exp(-Math.pow((x + (isWide ? 0.78 : 0.62)) / 0.54, 2)) * (layer >= 2 ? 0.26 : 0.15);
-        const midSwell  = isWide ? (Math.exp(-Math.pow((x + 0.18) / 0.38, 2)) * (layer >= 2 ? 0.14 : 0.08)) : 0.0;
-        const rightRise = Math.exp(-Math.pow((x - (isWide ? 0.92 : 0.96)) / 0.44, 2)) * (layer >= 2 ? 0.22 : 0.12);
-        const sunValley = Math.exp(-Math.pow((x - sunValleyX) / 0.42, 2)) * (layer >= 2 ? 0.16 : 0.05);
-
-        const baseY = -1.06 - (3 - layer) * 0.018 + mrng() * 0.07;
-        // Balanced tiered heights: ~16% gentle lower-tier plumes add depth without choking stalks or arching leaves!
-        const tierRoll = mrng();
-        const isLowTier = (layer >= 1 && tierRoll < 0.16);
-        const minH = isLowTier ? [0.48, 0.52, 0.56, 0.60][layer] : [0.54, 0.68, 0.84, 0.98][layer];
-        const maxH = isLowTier ? [0.74, 0.80, 0.88, 0.96][layer] : [0.84, 1.04, 1.24, 1.44][layer];
-        const hasPlume = mrng() < [0.90, 0.90, 0.92, 0.92][layer];
-        let height = Math.max(0.46, minH + mrng() * (maxH - minH) + (isLowTier ? 0.0 : (leftCrest + midSwell + rightRise - sunValley)));
-        if (!hasPlume) height *= 0.68;
-        const width = [0.0024, 0.0031, 0.0040, 0.0051][layer] * (0.84 + mrng() * 0.32);
-        const plumeSize = [0.132, 0.164, 0.200, 0.240][layer] * plumeAspScale * (isLowTier ? 0.88 : 1.0) * (0.84 + mrng() * 0.34);
-        const seed = mrng();
-        reedsByLayer[layer].push({ x, baseY, height, width, depth, layer, hasPlume, plumeSize, seed });
+      // 1. Build irregular botanical rhizome clusters (聚散有致: natural tufts + sunlit breathing gaps)
+      const clusters = [];
+      for (let c = 0; c < numClusters; c++) {
+        const u = numClusters > 1 ? c / (numClusters - 1) : 0.5;
+        // Strong organic spatial irregularity so tufts pair up naturally & leave airy negative-space windows
+        const rawX = u * 2.34 - 1.17;
+        const warp = Math.sin(u * 5.6 + layer * 2.15) * 0.13 + (mrng() - 0.5) * (2.25 / numClusters) * 1.18;
+        let cx = Math.max(-1.20, Math.min(1.20, rawX + warp));
+        // Gently open a lyrical glimpse around the watercolor sun for foreground clusters without a hard U-notch
+        if (layer >= 2 && Math.abs(cx - sunWindowX) < 0.16) {
+          cx += (cx < sunWindowX ? -0.14 : 0.15) * (0.65 + mrng() * 0.5);
+        }
+        const heightRoll = mrng();
+        const cHeightBias = heightRoll < 0.30 ? -0.14 : (heightRoll < 0.68 ? 0.02 : 0.16);
+        const cBaseY = (layer >= 2 ? -0.92 : -0.97) + mrng() * 0.15;
+        const cLean = (mrng() - 0.5) * 0.30;
+        const tuftHalfW = (0.044 + mrng() * 0.052) / spreadDiv;
+        clusters.push({ cx, cHeightBias, cBaseY, cLean, tuftHalfW });
       }
+      clustersByLayer[layer] = clusters;
+
+      // 2. Populate each cluster with fanned multi-tier stalks + ~16% solitary companion stalks ("聚中有散")
+      const clusteredTotal = Math.round(targetCount * 0.84);
+      const weights = clusters.map(() => 0.55 + mrng() * 1.15);
+      const wSum = weights.reduce((a, b) => a + b, 0);
+      let assigned = 0;
+      const countsPerCluster = weights.map((w, idx) => {
+        if (idx === clusters.length - 1) return Math.max(2, clusteredTotal - assigned);
+        const n = Math.max(2, Math.round((w / wSum) * clusteredTotal));
+        assigned += n;
+        return n;
+      });
+
+      const addStalk = (x, baseY, lean, cHeightBias, idxSeed) => {
+        const clampedX = Math.max(-1.24, Math.min(1.24, x));
+        const depth = Math.min(0.999, (layer + 0.08 + mrng() * 0.84) / 4.0);
+
+        // 4-tier staggered vertical rhythm (高低参差): soaring heroes, mid cadence, low peeking plumes, & bare stalks!
+        const tierRoll = mrng();
+        let minH, maxH, hasPlume, tierPlumeScale;
+        if (tierRoll < 0.23) {
+          // Hero soaring reeds
+          minH = [0.74, 0.92, 1.08, 1.20][layer];
+          maxH = [1.02, 1.24, 1.44, 1.58][layer];
+          hasPlume = true;
+          tierPlumeScale = 1.10;
+        } else if (tierRoll < 0.61) {
+          // Mid companion cadence
+          minH = [0.54, 0.68, 0.82, 0.90][layer];
+          maxH = [0.80, 0.98, 1.16, 1.26][layer];
+          hasPlume = true;
+          tierPlumeScale = 0.96;
+        } else if (tierRoll < 0.87) {
+          // Low tucked plumes peeking warmly among lower-mid stems (breaks empty-bottom / solid-top split!)
+          minH = [0.38, 0.44, 0.48, 0.52][layer];
+          maxH = [0.60, 0.68, 0.78, 0.86][layer];
+          hasPlume = true;
+          tierPlumeScale = 0.78;
+        } else {
+          // Slender bare companion stalks weaving calligraphic olive-lime lines through the tufts
+          minH = [0.42, 0.48, 0.54, 0.58][layer];
+          maxH = [0.70, 0.82, 0.92, 0.98][layer];
+          hasPlume = false;
+          tierPlumeScale = 0.0;
+        }
+
+        // Gentle asymmetric framing (stronger on edges, airy peeking window near watercolor sun)
+        const edgeLift = Math.pow(Math.min(1.0, Math.abs(clampedX) / 1.15), 2.2) * (layer >= 2 ? 0.14 : 0.08);
+        const sunBreath = Math.exp(-Math.pow((clampedX - sunWindowX) / 0.34, 2)) * (layer >= 2 ? 0.16 : 0.06);
+        let height = Math.max(0.36, minH + mrng() * (maxH - minH) + cHeightBias * 0.75 + edgeLift - sunBreath);
+        // Compensate baseY variation slightly so rooted-higher stalks don't poke abnormally high
+        const rootOffset = baseY + 0.94;
+        height = Math.max(0.36, height - rootOffset * 0.42);
+
+        const width = [0.0022, 0.0029, 0.0038, 0.0047][layer] * (0.80 + mrng() * 0.38);
+        const plumeSize = [0.128, 0.160, 0.196, 0.236][layer] * plumeAspScale * tierPlumeScale * (0.74 + mrng() * 0.46);
+        // Preserve breathing sky headroom above even the tallest hero plume on portrait & wide screens
+        const approxHScale = curAspect < 1.0 ? 1.04 : Math.max(0.96, 1.04 - Math.max(0, curAspect - 1.0) * 0.044);
+        const maxCrownY = curAspect < 1.0 ? 0.72 : 0.78;
+        const maxAllowedH = (maxCrownY - baseY - (hasPlume ? plumeSize * approxHScale * 1.12 : 0.0)) / approxHScale;
+        height = Math.max(0.36, Math.min(height, maxAllowedH));
+        const seed = mrng();
+
+        // Irregular staggered leaf count & attachment nodes (NEVER uniform horizontal rows!)
+        const lcRoll = mrng();
+        let leafCount;
+        if (layer === 0) leafCount = lcRoll < 0.48 ? 0 : (lcRoll < 0.90 ? 1 : 2);
+        else if (layer <= 2) leafCount = lcRoll < 0.24 ? 0 : (lcRoll < 0.68 ? 1 : 2);
+        else leafCount = lcRoll < 0.16 ? 0 : (lcRoll < 0.54 ? 1 : (lcRoll < 0.88 ? 2 : 3));
+
+        const leaves = [];
+        for (let lf = 0; lf < leafCount; lf++) {
+          let at = 0.16 + mrng() * 0.52;
+          // Ensure leaves on the same stalk stay cleanly staggered vertically
+          for (let tries = 0; tries < 5; tries++) {
+            if (leaves.every(prev => Math.abs(prev.attachT - at) > 0.13)) break;
+            at = 0.16 + mrng() * 0.52;
+          }
+          // Natural leaf direction: gently biased outward with tuft fan + organic randomness (not robotic L-R-L-R!)
+          const dirBias = lean * 0.35 + (mrng() - 0.5);
+          const kind = dirBias < 0 ? 1.0 : 2.0;
+          leaves.push({ attachT: at, kind });
+        }
+
+        reedsByLayer[layer].push({
+          x: clampedX, baseY, lean: Math.max(-0.62, Math.min(0.62, lean)),
+          height, width, depth, layer, hasPlume, plumeSize, seed, leaves
+        });
+      };
+
+      for (let c = 0; c < clusters.length; c++) {
+        const cl = clusters[c];
+        const m = countsPerCluster[c];
+        for (let j = 0; j < m; j++) {
+          const rel = m > 1 ? (j / (m - 1)) * 2.0 - 1.0 : 0.0;
+          const jitterRel = Math.max(-1.15, Math.min(1.15, rel + (mrng() - 0.5) * 0.55));
+          const sx = cl.cx + jitterRel * cl.tuftHalfW + (mrng() - 0.5) * 0.028;
+          const sy = cl.cBaseY + (mrng() - 0.5) * 0.08;
+          // Botanical rosette fan: outer stalks arch naturally outward, center stalks stand poised
+          const lean = cl.cLean + jitterRel * (0.26 + mrng() * 0.24) + (mrng() - 0.5) * 0.26;
+          addStalk(sx, sy, lean, cl.cHeightBias, c * 17 + j);
+        }
+      }
+
+      // Solitary graceful accent stalks bridging negative space organically
+      const solitaryCount = Math.max(2, targetCount - reedsByLayer[layer].length);
+      for (let s = 0; s < solitaryCount; s++) {
+        const sx = (mrng() * 2.34 - 1.17);
+        const sy = (layer >= 2 ? -0.90 : -0.96) + mrng() * 0.14;
+        const lean = (mrng() - 0.5) * 0.82;
+        addStalk(sx, sy, lean, (mrng() - 0.5) * 0.22, 900 + s);
+      }
+
+      // Sort by depth within layer so nearer stalks paint crisply over farther companions
+      reedsByLayer[layer].sort((a, b) => a.depth - b.depth);
     }
 
     const reedVerts = [];
     const nextReedRanges = [];
-    function pushReedTri(bX, bY, h, w, d, seed, t0, s0, k, at, t1, s1, t2, s2) {
+    const REED_FLOATS = 11;
+    function pushReedTri(bX, bY, lean, h, w, d, seed, t0, s0, k, at, t1, s1, t2, s2) {
       reedVerts.push(
-        bX, bY, h, w, d, seed, t0, s0, k, at,
-        bX, bY, h, w, d, seed, t1, s1, k, at,
-        bX, bY, h, w, d, seed, t2, s2, k, at
+        bX, bY, lean, h, w, d, seed, t0, s0, k, at,
+        bX, bY, lean, h, w, d, seed, t1, s1, k, at,
+        bX, bY, lean, h, w, d, seed, t2, s2, k, at
       );
     }
 
     for (let layer = 0; layer < 4; layer++) {
-      const startVert = reedVerts.length / 10;
+      const startVert = reedVerts.length / REED_FLOATS;
       const list = reedsByLayer[layer];
-      // Restrained, delicate short water-edge grass accents hugging the waterline softly
-      const sedgeN = Math.max(6, Math.round(BASE_SEDGE_COUNTS[layer] * densityScale));
+      const clusters = clustersByLayer[layer];
+
+      // Organic short rhizome shoots clustered gently around reed roots (zero uniform horizontal grass hedge!)
+      const sedgeN = Math.max(5, Math.round(BASE_SEDGE_COUNTS[layer] * densityScale));
       for (let g = 0; g < sedgeN; g++) {
-        const tg = sedgeN > 1 ? g / (sedgeN - 1) : 0.5;
-        const rawGx = tg * 2.48 - 1.24;
-        const tuftShift = Math.sin(rawGx * (clumpFreq * 1.15) + layer * 1.1) * (0.060 / Math.max(0.85, Math.sqrt(densityScale)));
-        const gx = Math.max(-1.26, Math.min(1.26, rawGx + tuftShift + (mrng() - 0.5) * (2.36 / sedgeN) * 1.35));
-        const gBaseY = -0.82 + mrng() * 0.10;
-        const gHeight = (0.11 + mrng() * 0.15) * (0.85 + layer * 0.08);
-        const gWidth = [0.0038, 0.0046, 0.0056, 0.0066][layer] * (0.80 + mrng() * 0.40);
+        const cl = clusters[Math.floor(mrng() * clusters.length)];
+        const off = (mrng() - 0.5) * (0.17 / spreadDiv);
+        const gx = Math.max(-1.24, Math.min(1.24, cl.cx + off));
+        const gBaseY = Math.max(-0.92, Math.min(-0.68, cl.cBaseY + 0.08 + mrng() * 0.10));
+        const gHeight = (0.09 + mrng() * 0.16) * (0.85 + layer * 0.08);
+        const gWidth = [0.0034, 0.0042, 0.0052, 0.0060][layer] * (0.78 + mrng() * 0.42);
         const gDepth = (layer + mrng()) / 4.0;
         const gSeed = mrng();
         const gFlex = mrng();
+        const gLean = Math.max(-0.68, Math.min(0.68, off * 4.2 + (mrng() - 0.5) * 0.58));
         for (let s = 0; s < SEDGE_SEGS; s++) {
           const t0 = s / SEDGE_SEGS, t1 = (s + 1) / SEDGE_SEGS;
-          pushReedTri(gx, gBaseY, gHeight, gWidth, gDepth, gSeed, t0, -1, 3.0, gFlex, t0, 1, t1, -1);
-          pushReedTri(gx, gBaseY, gHeight, gWidth, gDepth, gSeed, t1, -1, 3.0, gFlex, t0, 1, t1, 1);
+          pushReedTri(gx, gBaseY, gLean, gHeight, gWidth, gDepth, gSeed, t0, -1, 3.0, gFlex, t0, 1, t1, -1);
+          pushReedTri(gx, gBaseY, gLean, gHeight, gWidth, gDepth, gSeed, t1, -1, 3.0, gFlex, t0, 1, t1, 1);
         }
       }
+
       for (let i = 0; i < list.length; i++) {
         const r = list[i];
         for (let s = 0; s < STALK_SEGS; s++) {
           const t0 = s / STALK_SEGS, t1 = (s + 1) / STALK_SEGS;
-          pushReedTri(r.x, r.baseY, r.height, r.width, r.depth, r.seed, t0, -1, 0, 0, t0, 1, t1, -1);
-          pushReedTri(r.x, r.baseY, r.height, r.width, r.depth, r.seed, t1, -1, 0, 0, t0, 1, t1, 1);
+          pushReedTri(r.x, r.baseY, r.lean, r.height, r.width, r.depth, r.seed, t0, -1, 0, 0, t0, 1, t1, -1);
+          pushReedTri(r.x, r.baseY, r.lean, r.height, r.width, r.depth, r.seed, t1, -1, 0, 0, t0, 1, t1, 1);
         }
-        // Restored graceful arching botanical reed leaves along the stalks (2 leaves on mid/front, 1-2 on back)
-        const leafCount = layer === 0 ? (i % 2 === 0 ? 2 : 1) : (layer === 3 ? 3 : 2);
-        for (let lf = 0; lf < leafCount; lf++) {
-          const kind = ((i + lf) % 2 === 0) ? 1.0 : 2.0;
-          const attachT = 0.18 + lf * 0.17 + (r.seed * 0.08);
+        // Pass EXACT r.seed & r.lean so every leaf stays 100% attached to its bending parent stalk!
+        for (let lf = 0; lf < r.leaves.length; lf++) {
+          const leaf = r.leaves[lf];
           for (let s = 0; s < LEAF_SEGS; s++) {
             const t0 = s / LEAF_SEGS, t1 = (s + 1) / LEAF_SEGS;
-            pushReedTri(r.x, r.baseY, r.height, r.width, r.depth, r.seed + lf * 0.37, t0, -1, kind, attachT, t0, 1, t1, -1);
-            pushReedTri(r.x, r.baseY, r.height, r.width, r.depth, r.seed + lf * 0.37, t1, -1, kind, attachT, t0, 1, t1, 1);
+            pushReedTri(r.x, r.baseY, r.lean, r.height, r.width, r.depth, r.seed, t0, -1, leaf.kind, leaf.attachT, t0, 1, t1, -1);
+            pushReedTri(r.x, r.baseY, r.lean, r.height, r.width, r.depth, r.seed, t1, -1, leaf.kind, leaf.attachT, t0, 1, t1, 1);
           }
         }
       }
-      nextReedRanges.push({ start: startVert, count: reedVerts.length / 10 - startVert });
+      nextReedRanges.push({ start: startVert, count: reedVerts.length / REED_FLOATS - startVert });
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, REED_BUF);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(reedVerts), gl.STATIC_DRAW);
@@ -1203,21 +1342,22 @@
 
     const plumeVerts = [];
     const nextPlumeRanges = [];
+    const PLUME_FLOATS = 11;
     for (let layer = 0; layer < 4; layer++) {
-      const startVert = plumeVerts.length / 10;
+      const startVert = plumeVerts.length / PLUME_FLOATS;
       const list = reedsByLayer[layer];
       const frondsPerPlume = layer === 0 ? 3 : 4;
       for (let i = 0; i < list.length; i++) {
         const r = list[i];
         if (!r.hasPlume) continue;
         for (let f = 0; f < frondsPerPlume; f++) {
-          const scale = (0.76 + (f / frondsPerPlume) * 0.34) * (0.88 + mrng() * 0.22);
+          const scale = (0.76 + (f / frondsPerPlume) * 0.34) * (0.86 + mrng() * 0.24);
           for (let k = 0; k < 6; k++) {
-            plumeVerts.push(r.x, r.baseY, r.height, r.plumeSize, r.depth, r.seed, qPts[k][0], qPts[k][1], f, scale);
+            plumeVerts.push(r.x, r.baseY, r.lean, r.height, r.plumeSize, r.depth, r.seed, qPts[k][0], qPts[k][1], f, scale);
           }
         }
       }
-      nextPlumeRanges.push({ start: startVert, count: plumeVerts.length / 10 - startVert });
+      nextPlumeRanges.push({ start: startVert, count: plumeVerts.length / PLUME_FLOATS - startVert });
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, PLUME_BUF);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(plumeVerts), gl.STATIC_DRAW);
@@ -1878,9 +2018,9 @@
       gl.enableVertexAttribArray(reedLocs.aBase);
       gl.enableVertexAttribArray(reedLocs.aMeta);
       gl.enableVertexAttribArray(reedLocs.aShape);
-      gl.vertexAttribPointer(reedLocs.aBase,  2, gl.FLOAT, false, 40, 0);
-      gl.vertexAttribPointer(reedLocs.aMeta,  4, gl.FLOAT, false, 40, 8);
-      gl.vertexAttribPointer(reedLocs.aShape, 4, gl.FLOAT, false, 40, 24);
+      gl.vertexAttribPointer(reedLocs.aBase,  3, gl.FLOAT, false, 44, 0);
+      gl.vertexAttribPointer(reedLocs.aMeta,  4, gl.FLOAT, false, 44, 12);
+      gl.vertexAttribPointer(reedLocs.aShape, 4, gl.FLOAT, false, 44, 28);
       gl.drawArrays(gl.TRIANGLES, reedRanges[layer].start, reedRanges[layer].count);
       gl.disableVertexAttribArray(reedLocs.aBase);
       gl.disableVertexAttribArray(reedLocs.aMeta);
@@ -1896,9 +2036,9 @@
         gl.enableVertexAttribArray(plumeLocs.aBase);
         gl.enableVertexAttribArray(plumeLocs.aMeta);
         gl.enableVertexAttribArray(plumeLocs.aQuad);
-        gl.vertexAttribPointer(plumeLocs.aBase, 2, gl.FLOAT, false, 40, 0);
-        gl.vertexAttribPointer(plumeLocs.aMeta, 4, gl.FLOAT, false, 40, 8);
-        gl.vertexAttribPointer(plumeLocs.aQuad, 4, gl.FLOAT, false, 40, 24);
+        gl.vertexAttribPointer(plumeLocs.aBase, 3, gl.FLOAT, false, 44, 0);
+        gl.vertexAttribPointer(plumeLocs.aMeta, 4, gl.FLOAT, false, 44, 12);
+        gl.vertexAttribPointer(plumeLocs.aQuad, 4, gl.FLOAT, false, 44, 28);
         gl.drawArrays(gl.TRIANGLES, plumeRanges[layer].start, plumeRanges[layer].count);
         gl.disableVertexAttribArray(plumeLocs.aBase);
         gl.disableVertexAttribArray(plumeLocs.aMeta);
