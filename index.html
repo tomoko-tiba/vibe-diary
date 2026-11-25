@@ -462,8 +462,8 @@
       vec4 t0 = texture2D(uFieldTex, vec2((i0 + 0.5) / 64.0, v));
       vec4 t1 = texture2D(uFieldTex, vec2((i1 + 0.5) / 64.0, v));
 
-      float pos = mix((decode16(t0.rg) - 0.5) * 4.8, (decode16(t1.rg) - 0.5) * 4.8, fx);
-      float lag = mix((decode16(t0.ba) - 0.5) * 4.8, (decode16(t1.ba) - 0.5) * 4.8, fx);
+      float pos = mix((decode16(t0.rg) - 0.5) * 6.4, (decode16(t1.rg) - 0.5) * 6.4, fx);
+      float lag = mix((decode16(t0.ba) - 0.5) * 6.4, (decode16(t1.ba) - 0.5) * 6.4, fx);
       return vec2(pos, lag);
     }
 
@@ -473,20 +473,20 @@
     }
 
     // True inextensible elastic reed cantilever (4-point midpoint arc integral in square screen space!)
-    // Preserves exact stalk length while expressing organic botanical lean & bowing gracefully up to ~74 deg!
-    vec2 evalElasticStalk(vec2 base, float h, float t, float bend, float tipLag, float lean, float breathWave) {
-      float maxAngle = softBend(bend, 1.08);
-      float whipAng  = softBend(tipLag, 0.62);
+    // Monotonic silk-ribbon tip trailing + smooth softBend cushioning -> ZERO backward stall, ZERO hard clamp hitch!
+    vec2 evalElasticStalk(vec2 base, float h, float t, float bend, float lagBend, float lean, float breathWave) {
+      float baseAng = softBend(bend, 0.92);
+      float tipAng  = softBend(mix(bend, lagBend, 0.48), 1.00);
       vec2 sum = vec2(0.0);
       float ds = t * 0.25;
       for (int k = 0; k < 4; k++) {
         float s = (float(k) + 0.5) * ds;
-        // Natural rhizome fan at root + graceful upper botanical arch (breaks parallel vertical poles!)
+        // Lower stalk yields smoothly; supple upper crown trails gently like a silk ribbon (never fights or freezes!)
+        float followAng = mix(baseAng, tipAng, smoothstep(0.22, 1.0, s));
         float th = lean * (0.20 + 0.46 * pow(s, 1.32))
-                 + maxAngle * pow(s, 1.38)
-                 + whipAng  * pow(s, 2.25)
+                 + followAng * pow(s, 1.28)
                  + breathWave * s * s;
-        th = clamp(th, -1.30, 1.30);
+        th = softBend(th, 1.18);
         sum += vec2(sin(th), cos(th));
       }
       vec2 disp = sum * (ds * h);
@@ -534,38 +534,38 @@
       vec2 fld = sampleElasticField(aBase.x + phaseShift, depth);
       float fieldBend = fld.x;
       float fieldLag  = fld.y;
-      float whipDiff  = fieldLag - fieldBend;
-      float localAgit = clamp(abs(whipDiff) * 2.6 + abs(fieldBend) * 0.45 + uAgitation * 0.35, 0.0, 1.0);
+      float localAgit = clamp(abs(fieldLag - fieldBend) * 1.1 + abs(fieldBend) * 0.35 + uAgitation * 0.30, 0.0, 1.0);
 
       float phase = seed * 37.7 + aBase.x * 2.1;
       float windEnv = 0.62 + 0.38 * sin(uTime * 0.34 - aBase.x * 0.80 + depth * 1.15);
-      float breeze = (sin(uTime * 0.78 - aBase.x * 1.25 + depth * 1.55) * 0.105
-                   + sin(uTime * 1.42 + phase) * 0.032) * windEnv;
-      float breathWave = sin(uTime * 2.05 + phase - t * 1.9) * (0.022 + 0.036 * localAgit);
+      float breeze = (sin(uTime * 0.72 - aBase.x * 1.20 + depth * 1.50) * 0.095
+                   + sin(uTime * 1.32 + phase) * 0.026) * windEnv;
+      float breathWave = sin(uTime * 1.75 + phase - t * 1.8) * (0.018 + 0.024 * localAgit);
 
-      // Taller stalks flex deeper & more gracefully; shorter reeds rebound brisker
-      float heightFlex = clamp(h / 1.05, 0.68, 1.36);
-      float flex = (0.78 + fract(seed * 13.37) * 0.44) * heightFlex;
-      float depthAmp = 0.62 + depth * 0.58;
+      // Taller stalks flex deeper & more gracefully; shorter reeds rebound gently
+      float heightFlex = clamp(h / 1.05, 0.68, 1.32);
+      float flex = (0.80 + fract(seed * 13.37) * 0.40) * heightFlex;
+      float depthAmp = 0.64 + depth * 0.52;
 
-      float bend   = (fieldBend * flex + breeze) * depthAmp;
-      float tipLag = (whipDiff * 1.28 * flex) * depthAmp;
+      float bend    = (fieldBend * flex + breeze) * depthAmp;
+      float lagBend = (fieldLag  * flex + breeze) * depthAmp;
+      float softFlow = mix(bend, lagBend, 0.52);
 
       vec2 pos;
       vec2 tangent;
       float halfW;
 
       if (kind < 0.5) {
-        vec2 p0 = evalElasticStalk(aBase.xy, h, t, bend, tipLag, lean, breathWave);
-        vec2 p1 = evalElasticStalk(aBase.xy, h, min(1.0, t + 0.03), bend, tipLag, lean, breathWave);
+        vec2 p0 = evalElasticStalk(aBase.xy, h, t, bend, lagBend, lean, breathWave);
+        vec2 p1 = evalElasticStalk(aBase.xy, h, min(1.0, t + 0.03), bend, lagBend, lean, breathWave);
         pos = p0;
         tangent = normalize(p1 - p0 + vec2(0.0001, 0.001));
         halfW = max(w * mix(1.06, 0.38, t), 0.0019);
       } else if (kind < 2.5) {
         // Staggered calligraphic lanceolate reed leaves — 100% locked to parent stalk, 3 varied botanical postures!
         float dir = kind < 1.5 ? -1.0 : 1.0;
-        vec2 anchor = evalElasticStalk(aBase.xy, h, attachT, bend, tipLag, lean, breathWave);
-        vec2 ancNext = evalElasticStalk(aBase.xy, h, min(1.0, attachT + 0.04), bend, tipLag, lean, breathWave);
+        vec2 anchor = evalElasticStalk(aBase.xy, h, attachT, bend, lagBend, lean, breathWave);
+        vec2 ancNext = evalElasticStalk(aBase.xy, h, min(1.0, attachT + 0.04), bend, lagBend, lean, breathWave);
         vec2 sqUp = normalize(vec2((ancNext.x - anchor.x) * uAspect, ancNext.y - anchor.y) + vec2(0.0001, 0.001));
         vec2 sqRight = vec2(sqUp.y, -sqUp.x);
 
@@ -577,8 +577,8 @@
         // Keep blade span well-proportioned on both narrow portrait phones and wide desktop monitors
         float portScale = uAspect < 0.85 ? mix(0.76, 0.94, clamp((uAspect - 0.38) / 0.47, 0.0, 1.0)) : 0.96;
         float leafLen = clamp(h * (0.15 + lH1 * 0.16), 0.11, 0.36) * portScale;
-        float leafFlutter = sin(uTime * 2.25 + phase + attachT * 6.3) * (0.040 + 0.085 * localAgit);
-        float windPush = softBend(bend * 0.46 + tipLag * 0.62, 0.72) + leafFlutter;
+        float leafFlutter = sin(uTime * 1.90 + phase + attachT * 6.3) * (0.034 + 0.062 * localAgit);
+        float windPush = softBend(softFlow * 0.56, 0.68) + leafFlutter;
 
         // 3 natural botanical postures: ascending sword blade, graceful sweeping ribbon, or occasional gentle lower nod
         float posture = lH2;
@@ -614,7 +614,7 @@
       } else {
         // Organic tufted rhizome shoots hugging each reed cluster softly at varied angles
         float archAmt = lean;
-        float grassBend = softBend(bend * 0.78 + tipLag * 0.60, 0.85) * (0.65 + 0.35 * attachT);
+        float grassBend = softBend(softFlow * 0.76, 0.78) * (0.65 + 0.35 * attachT);
 
         vec2 sqC1 = vec2((archAmt * 0.42 + grassBend * 0.44) * h, h * 0.64);
         vec2 sqC2 = vec2((archAmt + grassBend * 0.92) * h, h * (0.90 - 0.18 * abs(archAmt)));
@@ -722,34 +722,34 @@
       vec2 fld = sampleElasticField(aBase.x + phaseShift, depth);
       float fieldBend = fld.x;
       float fieldLag  = fld.y;
-      float whipDiff  = fieldLag - fieldBend;
-      float localAgit = clamp(abs(whipDiff) * 2.6 + abs(fieldBend) * 0.45 + uAgitation * 0.35, 0.0, 1.0);
+      float localAgit = clamp(abs(fieldLag - fieldBend) * 1.1 + abs(fieldBend) * 0.35 + uAgitation * 0.30, 0.0, 1.0);
 
       float phase = seed * 37.7 + aBase.x * 2.1;
       float windEnv = 0.62 + 0.38 * sin(uTime * 0.34 - aBase.x * 0.80 + depth * 1.15);
-      float breeze = (sin(uTime * 0.78 - aBase.x * 1.25 + depth * 1.55) * 0.105
-                   + sin(uTime * 1.42 + phase) * 0.032) * windEnv;
-      float breathWave = sin(uTime * 2.05 + phase - 1.8) * (0.022 + 0.036 * localAgit);
+      float breeze = (sin(uTime * 0.72 - aBase.x * 1.20 + depth * 1.50) * 0.095
+                   + sin(uTime * 1.32 + phase) * 0.026) * windEnv;
+      float breathWave = sin(uTime * 1.75 + phase - 1.8) * (0.018 + 0.024 * localAgit);
 
-      float heightFlex = clamp(h / 1.05, 0.68, 1.36);
-      float flex = (0.78 + fract(seed * 13.37) * 0.44) * heightFlex;
-      float depthAmp = 0.62 + depth * 0.58;
+      float heightFlex = clamp(h / 1.05, 0.68, 1.32);
+      float flex = (0.80 + fract(seed * 13.37) * 0.40) * heightFlex;
+      float depthAmp = 0.64 + depth * 0.52;
 
-      float bend   = (fieldBend * flex + breeze) * depthAmp;
-      float tipLag = (whipDiff * 1.28 * flex) * depthAmp;
+      float bend    = (fieldBend * flex + breeze) * depthAmp;
+      float lagBend = (fieldLag  * flex + breeze) * depthAmp;
+      float softFlow = mix(bend, lagBend, 0.58);
 
       // Keep panicle fronds tightly nestled at the stalk crown so they stream as ONE cohesive silky plume!
       float attachT = 0.83 + fIdx * 0.030;
-      vec2 tip  = evalElasticStalk(aBase.xy, h, attachT, bend, tipLag, lean, breathWave);
-      vec2 prev = evalElasticStalk(aBase.xy, h, attachT - 0.10, bend, tipLag, lean, breathWave);
+      vec2 tip  = evalElasticStalk(aBase.xy, h, attachT, bend, lagBend, lean, breathWave);
+      vec2 prev = evalElasticStalk(aBase.xy, h, attachT - 0.10, bend, lagBend, lean, breathWave);
 
       vec2 sqDir = normalize(vec2((tip.x - prev.x) * uAspect, tip.y - prev.y) + vec2(0.0001, 0.001));
-      // Organic per-reed plume nodding follows stalk lean naturally + individual asymmetry (never all tilted one way!)
+      // Organic per-reed plume nodding streams softly in harmony with the bent stalk (ZERO backward twist!)
       float naturalNod = lean * 0.38 + (fract(seed * 29.1) - 0.5) * 0.48;
-      float windBias = softBend(bend * 0.65 + tipLag * 0.85, 0.95) + naturalNod;
-      float spreadAngle = (fIdx - 1.45) * 0.115 * (1.0 + 0.22 * localAgit) + windBias * 0.095;
-      float gentleWave = sin(uTime * 2.40 + seed * 31.0 + fIdx * 1.9) * (0.022 + 0.044 * localAgit);
-      float ang = spreadAngle + gentleWave + clamp(whipDiff * 0.20, -0.22, 0.22);
+      float windBias = softBend(softFlow * 0.68, 0.86) + naturalNod;
+      float spreadAngle = (fIdx - 1.45) * 0.115 * (1.0 + 0.18 * localAgit) + windBias * 0.090;
+      float gentleWave = sin(uTime * 2.10 + seed * 31.0 + fIdx * 1.9) * (0.018 + 0.034 * localAgit);
+      float ang = spreadAngle + gentleWave;
 
       float ca = cos(ang), sa = sin(ang);
       vec2 fDir = vec2(sqDir.x * ca - sqDir.y * sa, sqDir.x * sa + sqDir.y * ca);
@@ -1368,11 +1368,13 @@
   // 16-BIT ELASTIC WIND & INERTIAL TIP-FOLLOW FIELD (64 x 4 RGBA8 NEAREST)
   // =========================================================================
   const GRID_X = 64, GRID_Z = 4;
-  const fieldPos    = new Float32Array(GRID_X * GRID_Z);
-  const fieldVel    = new Float32Array(GRID_X * GRID_Z);
-  const fieldLag    = new Float32Array(GRID_X * GRID_Z);
-  const fieldLagVel = new Float32Array(GRID_X * GRID_Z);
-  const fieldBytes  = new Uint8Array(GRID_X * GRID_Z * 4);
+  const fieldPos     = new Float32Array(GRID_X * GRID_Z);
+  const fieldVel     = new Float32Array(GRID_X * GRID_Z);
+  const fieldNextPos = new Float32Array(GRID_X * GRID_Z);
+  const fieldNextVel = new Float32Array(GRID_X * GRID_Z);
+  const fieldLag     = new Float32Array(GRID_X * GRID_Z);
+  const fieldLagVel  = new Float32Array(GRID_X * GRID_Z);
+  const fieldBytes   = new Uint8Array(GRID_X * GRID_Z * 4);
 
   const fieldTex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, fieldTex);
@@ -1465,6 +1467,8 @@
     const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
     const w = Math.max(1, Math.floor(window.innerWidth * dpr));
     const h = Math.max(1, Math.floor(window.innerHeight * dpr));
+    // Skip spurious identical-size resize callbacks (prevents mobile Safari touch-time FBO re-bake hiccups!)
+    if (sceneFBO && w === fbWidth && h === fbHeight) return;
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
     fbWidth = w; fbHeight = h; aspect = w / h;
 
@@ -1508,7 +1512,6 @@
   let targetX = 0, targetY = 0, smoothX = 0, smoothY = 0, prevSmoothX = 0, smoothVx = 0;
   let lastSign = 0, swipeFrequency = 0, globalAgitation = 0, recentReversals = 0;
   let pendingFluff = 0, emitCooldown = 0, lastBrushX = 0, lastBrushY = 0.2, lastBrushVx = 0;
-  let pointerIdleTimer = 1.0;
 
   // Rare cinematic lens-defocus controller (strict 16–22s cooldown so screen stays crisp most of the time!)
   let lensCooldown = 1.2;
@@ -1516,6 +1519,11 @@
   let lensBlurAge = 0.0;
   let lensHadBlur = false;
   let lensPosX = 0.5, lensPosY = 0.54;
+
+  function softLimit(x, lim) {
+    const a = x / lim;
+    return x / Math.sqrt(1.0 + a * a);
+  }
 
   function screenToWorld(cx, cy) {
     return [(cx / window.innerWidth) * 2 - 1, 1 - (cy / window.innerHeight) * 2];
@@ -1525,12 +1533,11 @@
     const [wx, wy] = screenToWorld(cx, cy);
     pointerDown = true;
     pointerActive = true;
-    pointerIdleTimer = 0;
     lastSign = 0;
     targetX = wx; targetY = wy;
     smoothX = wx; smoothY = wy;
     prevSmoothX = wx;
-    smoothVx *= 0.25;
+    smoothVx = 0;
   }
 
   function onPointerMove(cx, cy, isTouch) {
@@ -1538,34 +1545,35 @@
     if (!pointerActive) {
       pointerActive = true;
       smoothX = wx; smoothY = wy; prevSmoothX = wx;
+      smoothVx = 0;
     }
     targetX = wx;
     targetY = wy;
     if (isTouch) pointerDown = true;
-    pointerIdleTimer = 0;
   }
 
   canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if (e.touches.length) onPointerStart(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
   canvas.addEventListener('touchmove',  (e) => { e.preventDefault(); if (e.touches.length) onPointerMove(e.touches[0].clientX, e.touches[0].clientY, true); }, { passive: false });
-  canvas.addEventListener('touchend',   (e) => { e.preventDefault(); pointerDown = false; }, { passive: false });
-  canvas.addEventListener('touchcancel',(e) => { e.preventDefault(); pointerDown = false; }, { passive: false });
+  canvas.addEventListener('touchend',   (e) => { e.preventDefault(); pointerDown = false; pointerActive = false; }, { passive: false });
+  canvas.addEventListener('touchcancel',(e) => { e.preventDefault(); pointerDown = false; pointerActive = false; }, { passive: false });
   canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') onPointerStart(e.clientX, e.clientY); });
   window.addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch') onPointerMove(e.clientX, e.clientY, false); });
   window.addEventListener('pointerup',   (e) => { if (e.pointerType !== 'touch') pointerDown = false; });
+  window.addEventListener('pointerleave',() => { pointerDown = false; pointerActive = false; });
 
-  const LAYER_TOUCH = [0.46, 0.74, 1.04, 1.30];
+  const LAYER_TOUCH = [0.44, 0.72, 1.00, 1.24];
 
   function applyContinuousBrush(x0, x1, wy, dx, vx, speed, dt, isPressed) {
-    // Generous response anywhere across the marsh; only gently tapers high in empty sky
-    const heightWeight = wy > 0.68 ? Math.max(0.18, 1.0 - (wy - 0.68) * 2.2) : 1.0;
+    // Pure force-driven soft aerodynamic drag (ZERO fieldPos teleportation & ZERO hard clamp stalls!)
+    const heightWeight = wy > 0.72 ? Math.max(0.22, 1.0 - (wy - 0.72) * 2.0) : 1.0;
     const minX = Math.min(x0, x1), maxX = Math.max(x0, x1);
     const radius = isPressed
-      ? (aspect < 1.0 ? 0.50 : 0.34)
-      : (aspect < 1.0 ? 0.42 : 0.30);
-    const clampedVx = Math.max(-7.5, Math.min(7.5, vx));
-    // Combine actual swept spatial distance (dx) + velocity wake so BOTH slow caresses & fast flicks feel super responsive!
-    const velDrive = (dx * (isPressed ? 14.5 : 8.8) + clampedVx * dt * (isPressed ? 6.4 : 3.8)) * heightWeight;
-    const posDrive = dx * (isPressed ? 1.38 : 0.68) * heightWeight;
+      ? (aspect < 1.0 ? 0.62 : 0.44)
+      : (aspect < 1.0 ? 0.50 : 0.36);
+
+    // Smoothly compressed air-stream speed driven by finger motion (never punches or jumps on touch slop!)
+    const airSpeed = softLimit(vx, 3.4) * (isPressed ? 1.18 : 0.66) * heightWeight;
+    const baseCoupling = (isPressed ? 6.8 : 3.6) * heightWeight;
 
     for (let z = 0; z < GRID_Z; z++) {
       const depthWeight = LAYER_TOUCH[z];
@@ -1575,12 +1583,16 @@
         const dist = Math.abs(cellX - clampedX);
         if (dist < radius) {
           const u = dist / radius;
-          const f = 1.0 - u * u;
-          const f2 = f * f;
+          // Creamy Gaussian-bell footprint: reeds ahead of finger begin parting softly before contact!
+          const bell = Math.exp(-2.6 * u * u) * (1.0 - u * u);
           const idx = z * GRID_X + i;
-          // Immediate silky tactile yield directly under finger/cursor + lush momentum wake!
-          fieldPos[idx] = Math.max(-2.15, Math.min(2.15, fieldPos[idx] + posDrive * f2 * depthWeight));
-          fieldVel[idx] = Math.max(-6.2, Math.min(6.2, fieldVel[idx] + velDrive * f2 * depthWeight));
+          const curPos = fieldPos[idx];
+          const curVel = fieldVel[idx];
+          // Progressive elastic cushion: yields effortlessly near upright, cushions softly at deeper bows
+          const bendResist = 1.0 / (1.0 + curPos * curPos * 0.42);
+          const blend = 1.0 - Math.exp(-dt * baseCoupling * bell * depthWeight);
+          const targetVel = airSpeed * (0.65 + 0.55 * depthWeight) * bendResist;
+          fieldVel[idx] = curVel + (targetVel - curVel * 0.32) * blend;
         }
       }
     }
@@ -1624,41 +1636,41 @@
   }
 
   function updatePhysics(dt, t) {
-    pointerIdleTimer += dt;
-    if (pointerActive && pointerIdleTimer < 0.28) {
-      // Crisp, near-zero-latency finger tracking while staying butter-smooth across frames
-      const followRate = pointerDown ? 36.0 : 22.0;
+    if (pointerActive) {
+      // Silky low-pass finger tracking (absorbs iOS touch-slop & coalesced event bursts without any hitch!)
+      const followRate = pointerDown ? 17.5 : 13.0;
       const follow = 1.0 - Math.exp(-dt * followRate);
       prevSmoothX = smoothX;
       smoothX += (targetX - smoothX) * follow;
       smoothY += (targetY - smoothY) * follow;
       const dx = smoothX - prevSmoothX;
-      const instVx = dx / Math.max(0.004, dt);
-      smoothVx += (instVx - smoothVx) * (1.0 - Math.exp(-dt * 20.0));
+      const instVx = dx / Math.max(0.006, dt);
+      const velFollow = 1.0 - Math.exp(-dt * 11.5);
+      smoothVx += (instVx - smoothVx) * velFollow;
       const speed = Math.abs(smoothVx);
-      if (speed > 0.03 || Math.abs(dx) > 0.0012) {
+      if (speed > 0.025 || Math.abs(dx) > 0.0008) {
         applyContinuousBrush(prevSmoothX, smoothX, smoothY, dx, smoothVx, speed, dt, pointerDown);
         handleSwipeFluff(smoothX, smoothY, dx, smoothVx, speed, pointerDown);
       }
     } else {
-      smoothVx *= Math.exp(-dt * 8.0);
+      smoothVx *= Math.exp(-dt * 6.5);
     }
 
     swipeFrequency = Math.max(0, swipeFrequency - dt * (0.45 + swipeFrequency * 0.34));
     recentReversals = Math.max(0, recentReversals - dt * 0.55);
-    globalAgitation += (Math.min(1, swipeFrequency) - globalAgitation) * Math.min(1, dt * 5.0);
+    globalAgitation += (Math.min(1, swipeFrequency) - globalAgitation) * Math.min(1, dt * 4.2);
 
-    // 3-substep under-damped traveling-wave elastic reed solver + depth cascade + supple inertial tip-lag
-    // (Natural ζ ≈ 0.23 -> bows deeply with finger, ripples outward across marsh, springs back in 2-3 organic swings!)
-    const SUBSTEPS = 3;
+    // 4-substep symmetric double-buffered gentle harmonic reed wave solver
+    // (Languid natural period ~3.5s, silky ζ ≈ 0.36 -> bows softly like sunlit silk & glides back with zero hitch!)
+    const SUBSTEPS = 4;
     const sdt = dt / SUBSTEPS;
-    const stiffness   = 5.4;
-    const damping     = 1.08;
-    const coupling    = 22.0;
-    const velCoupling = 2.0;
-    const zCoupling   = 2.6;
-    const lagStiff    = 9.2;
-    const lagDamp     = 2.15;
+    const stiffness   = 3.1;
+    const damping     = 1.28;
+    const coupling    = 14.0;
+    const velCoupling = 2.8;
+    const zCoupling   = 2.2;
+    const lagStiff    = 24.0;
+    const lagDamp     = 7.2;
 
     for (let step = 0; step < SUBSTEPS; step++) {
       const ts = t + step * sdt;
@@ -1672,42 +1684,49 @@
           const right  = i < GRID_X - 1 ? fieldPos[idx + 1] : pos;
           const vLeft  = i > 0 ? fieldVel[idx - 1] : vel;
           const vRight = i < GRID_X - 1 ? fieldVel[idx + 1] : vel;
-          // Depth ripple: front layer wake flows organically backward through mid & far layers
+          // Depth ripple: front layer wake whispers organically backward through mid & far layers
           const frontPos = z < GRID_Z - 1 ? fieldPos[idx + GRID_X] : pos;
           const worldX = (i / (GRID_X - 1)) * 2.5 - 1.25;
 
-          const gustSwell = 0.58 + 0.42 * Math.sin(ts * 0.32 - worldX * 0.48 + zPhase);
+          const gustSwell = 0.58 + 0.42 * Math.sin(ts * 0.30 - worldX * 0.46 + zPhase);
           const windForce = (
-            Math.sin(ts * 0.62 - worldX * 1.18 + zPhase) * 0.62 +
-            Math.sin(ts * 1.15 - worldX * 2.10 + zPhase * 1.35) * 0.24 +
-            Math.sin(ts * 0.36 + worldX * 0.68) * 0.18
+            Math.sin(ts * 0.56 - worldX * 1.12 + zPhase) * 0.42 +
+            Math.sin(ts * 1.02 - worldX * 1.95 + zPhase * 1.35) * 0.16 +
+            Math.sin(ts * 0.32 + worldX * 0.64) * 0.12
           ) * gustSwell;
 
-          const acc = -stiffness * pos
+          // Smooth progressive elastic restoring force (never slams into a hard clamp ceiling!)
+          const restoring = -stiffness * pos * (1.0 + 0.16 * pos * pos);
+          const acc = restoring
                     - damping * vel
                     + coupling * (left + right - 2.0 * pos)
                     + velCoupling * (vLeft + vRight - 2.0 * vel)
                     + zCoupling * (frontPos - pos)
                     + windForce;
-          const newVel = Math.max(-6.4, Math.min(6.4, vel + acc * sdt));
-          const newPos = Math.max(-2.25, Math.min(2.25, pos + newVel * sdt));
-          fieldVel[idx] = newVel;
-          fieldPos[idx] = newPos;
-
-          // Supple inertial tip-follow spring -> creates genuine S-curve follow-through & graceful tip flick on rebound!
-          const lPos = fieldLag[idx], lVel = fieldLagVel[idx];
-          const lAcc = lagStiff * (newPos - lPos) - lagDamp * lVel;
-          const newLVel = Math.max(-6.4, Math.min(6.4, lVel + lAcc * sdt));
-          fieldLagVel[idx] = newLVel;
-          fieldLag[idx] = Math.max(-2.3, Math.min(2.3, lPos + newLVel * sdt));
+          const newVel = Math.max(-5.5, Math.min(5.5, vel + acc * sdt));
+          const newPos = Math.max(-3.1, Math.min(3.1, pos + newVel * sdt));
+          fieldNextVel[idx] = newVel;
+          fieldNextPos[idx] = newPos;
         }
+      }
+      // Commit symmetric double buffer & step well-damped silk-ribbon tip follower
+      for (let idx = 0; idx < GRID_X * GRID_Z; idx++) {
+        const newPos = fieldNextPos[idx];
+        fieldPos[idx] = newPos;
+        fieldVel[idx] = fieldNextVel[idx];
+
+        const lPos = fieldLag[idx], lVel = fieldLagVel[idx];
+        const lAcc = lagStiff * (newPos - lPos) - lagDamp * lVel;
+        const newLVel = Math.max(-5.5, Math.min(5.5, lVel + lAcc * sdt));
+        fieldLagVel[idx] = newLVel;
+        fieldLag[idx] = Math.max(-3.1, Math.min(3.1, lPos + newLVel * sdt));
       }
     }
 
-    // Pack full 16-bit fieldPos (RG) & 16-bit fieldLag (BA) into 64x4 RGBA8 fieldTex
+    // Pack full 16-bit fieldPos (RG) & 16-bit fieldLag (BA) into 64x4 RGBA8 fieldTex (range ±3.2)
     for (let idx = 0; idx < GRID_X * GRID_Z; idx++) {
-      const p16 = packU16(fieldPos[idx], 2.4);
-      const l16 = packU16(fieldLag[idx], 2.4);
+      const p16 = packU16(fieldPos[idx], 3.2);
+      const l16 = packU16(fieldLag[idx], 3.2);
       const b = idx * 4;
       fieldBytes[b + 0] = (p16 >> 8) & 255;
       fieldBytes[b + 1] = p16 & 255;
